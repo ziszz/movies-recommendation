@@ -50,42 +50,42 @@ class RankingModel(tf.keras.Model):
             layers.Dense(1),
         ])
 
-        def call(self, inputs):
-            try:
-                user_id, movie_id = inputs
+    def call(self, inputs):
+        try:
+            user_id, movie_id = inputs
 
-                user_embedding = self.user_embeddings(user_id)
-                movie_embedding = self.movie_embeddings(movie_id)
+            user_embedding = self.user_embeddings(user_id)
+            movie_embedding = self.movie_embeddings(movie_id)
 
-                return self.ratings(tf.concat(user_embedding, movie_embedding), axis=2)
-            except BaseException as err:
-                logging.error(f"ERROR IN RankingModel::call:\n{err}")
+            return self.ratings(tf.concat(user_embedding, movie_embedding), axis=2)
+        except BaseException as err:
+            logging.error(f"ERROR IN RankingModel::call:\n{err}")
 
 
 class RecommenderModel(tfrs.Model):
-    def __init__(self):
+    def __init__(self, tf_transform_output):
         super().__init__()
-        self.ranking_model = RankingModel()
+        self.ranking_model = RankingModel(tf_transform_output)
         self.task = tfrs.tasks.Ranking(
             loss=tf.keras.losses.MeanSquaredError(),
             metrics=[tf.keras.metrics.RootMeanSquaredError()],
         )
 
-        def call(self, features: Dict[str, tf.Tensor]):
-            try:
-                return self.ranking_model((features[FEATURE_KEYS[0]], features[FEATURE_KEYS[1]]))
-            except BaseException as err:
-                logging.error(f"ERROR IN RecommenderModel::call:\n{err}")
+    def call(self, features: Dict[str, tf.Tensor]):
+        try:
+            return self.ranking_model((features[FEATURE_KEYS[0]], features[FEATURE_KEYS[1]]))
+        except BaseException as err:
+            logging.error(f"ERROR IN RecommenderModel::call:\n{err}")
 
-        def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
-            try:
-                labels = features[1]
-                rating_predictions = self(features[0])
+    def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
+        try:
+            labels = features[1]
+            rating_predictions = self(features[0])
 
-                return self.task(labels=labels, predictions=rating_predictions)
-            except BaseException as err:
-                logging.error(
-                    f"ERROR IN RecommenderModel::compute_loss:\n{err}")
+            return self.task(labels=labels, predictions=rating_predictions)
+        except BaseException as err:
+            logging.error(
+                f"ERROR IN RecommenderModel::compute_loss:\n{err}")
 
 
 def _input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
@@ -103,7 +103,7 @@ def _input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
 
 def _get_serve_tf_examples_fn(model, tf_transform_output):
     try:
-        model.tft_layer = tf_transform_output.transform_features_layers()
+        model.tft_layer = tf_transform_output.transform_features_layer()
 
         @tf.function(input_signature=[
             tf.TensorSpec(shape=[None], dtype=tf.string, name="examples"),
@@ -126,9 +126,9 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         logging.error(f"ERROR IN _get_serve_tf_examples_fn:\n{err}")
 
 
-def _get_model():
+def _get_model(tf_transform_output):
     try:
-        return RecommenderModel()
+        return RecommenderModel(tf_transform_output)
     except BaseException as err:
         logging.error(f"ERROR IN _get_model:\n{err}")
 
@@ -151,7 +151,7 @@ def run_fn(fn_args):
             tf_transform_output,
         )
 
-        model = _get_model()
+        model = _get_model(tf_transform_output)
 
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
 

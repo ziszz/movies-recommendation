@@ -4,20 +4,8 @@ import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from absl import logging
 from keras import layers
-from movie_transform import FEATURE_KEYS, transformed_name
-from rating_transform import FEATURE_KEYS
 from tfx_bsl.public import tfxio
-
-
-class RecommenderModel(tfrs.Model):
-    def __init__(self):
-        super().__init__()
-
-        self.embedding_dims = 64
-
-        self.movie_model = tf.keras.Sequential([
-            layers.StringLookup()
-        ])
+from modules.transform import CATEGORICAL_FEATURE, NUMERICAL_FEATURE
 
 
 def _input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
@@ -53,3 +41,10 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         logging.error(f"ERROR IN _get_serve_tf_examples_fn:\n{err}")
 
     return serve_tf_examples_fn
+
+
+def _get_model(tf_transform_output):
+    try:
+        model = tf.keras.Sequ
+    except BaseException as err:
+        logging.error(f"ERROR IN _get_model:\n{err}")

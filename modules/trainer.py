@@ -1,14 +1,23 @@
 import os
 
 import tensorflow as tf
+import tensorflow_recommenders as tfrs
 from absl import logging
 from keras import layers
-from tensorflow_similarity.layers import MetricEmbedding
-from tensorflow_similarity.losses import MultiSimilarityLoss
-from tensorflow_similarity.models import SimilarityModel
+from movie_transform import FEATURE_KEYS, transformed_name
+from rating_transform import FEATURE_KEYS
 from tfx_bsl.public import tfxio
 
-from movie_transform import FEATURE_KEYS, transformed_name
+
+class RecommenderModel(tfrs.Model):
+    def __init__(self):
+        super().__init__()
+
+        self.embedding_dims = 64
+
+        self.movie_model = tf.keras.Sequential([
+            layers.StringLookup()
+        ])
 
 
 def _input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
@@ -44,26 +53,3 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         logging.error(f"ERROR IN _get_serve_tf_examples_fn:\n{err}")
 
     return serve_tf_examples_fn
-
-
-def _get_model(movie_vocab, vectorizer_layer):
-    try:
-        input_features = []
-
-        for key in FEATURE_KEYS:
-            input_features.append(
-                layers.Input(shape=(1,), name=transformed_name(key))
-            )
-
-        concatenate = layers.concatenate(input_features)
-        x = layers.Conv2D(64, 3, activation='relu')(concatenate)
-        x = layers.Flatten()(x)
-        x = layers.Dense(64, activation='relu')(x)
-        outputs = MetricEmbedding(64)(x)
-
-        model = SimilarityModel(input_features, outputs)
-
-    except BaseException as err:
-        logging.error(f"ERROR IN _get_model:\n{err}")
-
-    return model

@@ -1,5 +1,6 @@
 /__pycache__/
 /data/
 /pipeline/
+/modules/__pycache__/
 
 *.zip

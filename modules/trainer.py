@@ -3,6 +3,7 @@ from typing import Dict, List, Text
 
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
+import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 from tfx_bsl.public import tfxio
@@ -104,7 +105,9 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
     try:
         model.tft_layer = tf_transform_output.transform_features_layers()
 
-        @tf.function
+        @tf.function(input_signature=[
+            tf.TensorSpec(shape=[None], dtype=tf.string, name="examples"),
+        ])
         def serve_tf_examples_fn(serialized_tf_examples):
             try:
                 feature_spec = tf_transform_output.raw_feature_spec()
@@ -128,3 +131,59 @@ def _get_model():
         return RecommenderModel()
     except BaseException as err:
         logging.error(f"ERROR IN _get_model:\n{err}")
+
+
+def run_fn(fn_args):
+    try:
+        log_dir = os.path.join(os.path.dirname(
+            fn_args.serving_model_dir), "logs")
+
+        tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
+
+        train_dataset = _input_fn(
+            fn_args.train_files,
+            fn_args.data_accessor,
+            tf_transform_output,
+        )
+        eval_dataset = _input_fn(
+            fn_args.eval_files,
+            fn_args.data_accessor,
+            tf_transform_output,
+        )
+
+        model = _get_model()
+
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
+
+        model.compile(optimizer=tf.keras.optimizers.Adagrad(learning_rate=0.1))
+
+    except BaseException as err:
+        logging.error(f"ERROR IN run_fn before fit:\n{err}")
+
+    try:
+        model.fit(
+            train_dataset,
+            epochs=fn_args.custom_config["epochs"],
+            steps_per_epoch=fn_args.train_steps,
+            validation_data=eval_dataset,
+            validation_steps=fn_args.eval_steps,
+            callbacks=[tensorboard_callback],
+            verbose=1,
+        )
+    except BaseException as err:
+        logging.error(f"ERROR IN run_fn during fit:\n{err}")
+
+    try:
+        signatures = {
+            "serving_default": _get_serve_tf_examples_fn(
+                model, tf_transform_output,
+            )
+        }
+
+        model.save(
+            fn_args.serving_model_dir,
+            save_format="tf",
+            signatures=signatures,
+        )
+    except BaseException as err:
+        logging.error(f"ERROR IN run_fn during export:\n{err}")

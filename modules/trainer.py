@@ -15,7 +15,7 @@ from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
 class RankingModel(tf.keras.Model):
     def __init__(self, tf_transform_output):
         super().__init__()
-        self.embedding_dims = 256
+        self.embedding_dims = 128
 
         self.unique_user_ids = tf_transform_output.vocabulary_by_name(
             f"{FEATURE_KEYS[0]}_vocab")
@@ -54,8 +54,8 @@ class RankingModel(tf.keras.Model):
         ])
 
         self.ratings = tf.keras.Sequential([
-            layers.Dense(256, activation=tf.nn.relu),
-            layers.Dense(64, activation=tf.nn.relu),
+            layers.Dense(1024, activation=tf.nn.relu),
+            layers.Dense(512, activation=tf.nn.relu),
             layers.Dense(1),
         ])
 
@@ -170,7 +170,7 @@ def run_fn(fn_args):
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
 
         model.compile(
-            optimizer=tf.keras.optimizers.Adagrad(learning_rate=1e-3))
+            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4))
 
     except BaseException as err:
         logging.error(f"ERROR IN run_fn before fit:\n{err}")

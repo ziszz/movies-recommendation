@@ -1,6 +1,7 @@
 import os
-from typing import Dict, List, Text
+from typing import Dict, Text
 
+import keras
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 import tensorflow_transform as tft
@@ -8,13 +9,13 @@ from absl import logging
 from keras import layers
 from tfx_bsl.public import tfxio
 
-from modules.transform import FEATURE_KEYS, transformed_name
+from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
 
 
 class RankingModel(tf.keras.Model):
     def __init__(self, tf_transform_output):
         super().__init__()
-        self.embedding_dims = 64
+        self.embedding_dims = 256
 
         self.unique_user_ids = tf_transform_output.vocabulary_by_name(
             f"{FEATURE_KEYS[0]}_vocab")
@@ -27,7 +28,11 @@ class RankingModel(tf.keras.Model):
             layers.StringLookup(
                 vocabulary=self.unique_user_ids, mask_token=None),
             tf.keras.layers.Embedding(
-                len(self.users_vocab_str) + 1, self.embedding_dims),
+                len(self.users_vocab_str) + 1,
+                self.embedding_dims,
+                embeddings_initializer='he_normal',
+                embeddings_regularizer=keras.regularizers.l2(1e-3),
+            ),
         ])
 
         self.unique_movie_ids = tf_transform_output.vocabulary_by_name(
@@ -41,7 +46,11 @@ class RankingModel(tf.keras.Model):
             layers.StringLookup(
                 vocabulary=self.unique_movie_ids, mask_token=None),
             tf.keras.layers.Embedding(
-                len(self.movies_vocab_str) + 1, self.embedding_dims),
+                len(self.movies_vocab_str) + 1,
+                self.embedding_dims,
+                embeddings_initializer='he_normal',
+                embeddings_regularizer=keras.regularizers.l2(1e-3),
+            ),
         ])
 
         self.ratings = tf.keras.Sequential([
@@ -57,7 +66,7 @@ class RankingModel(tf.keras.Model):
             user_embedding = self.user_embeddings(user_id)
             movie_embedding = self.movie_embeddings(movie_id)
 
-            return self.ratings(tf.concat(user_embedding, movie_embedding), axis=2)
+            return self.ratings(tf.concat([user_embedding, movie_embedding], axis=2))
         except BaseException as err:
             logging.error(f"ERROR IN RankingModel::call:\n{err}")
 
@@ -73,14 +82,17 @@ class RecommenderModel(tfrs.Model):
 
     def call(self, features: Dict[str, tf.Tensor]):
         try:
-            return self.ranking_model((features[FEATURE_KEYS[0]], features[FEATURE_KEYS[1]]))
+            return self.ranking_model((
+                features[transformed_name(FEATURE_KEYS[0])],
+                features[transformed_name(FEATURE_KEYS[1])]
+            ))
         except BaseException as err:
             logging.error(f"ERROR IN RecommenderModel::call:\n{err}")
 
     def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
         try:
-            labels = features[1]
-            rating_predictions = self(features[0])
+            labels = features.pop(transformed_name(LABEL_KEY))
+            rating_predictions = self(features)
 
             return self.task(labels=labels, predictions=rating_predictions)
         except BaseException as err:
@@ -98,7 +110,7 @@ def _input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
             tf_transform_output.transformed_metadata.schema,
         )
     except BaseException as err:
-        logging.error(f"ERROR IN input_fn:\n{err}")
+        logging.error(f"ERROR IN _input_fn:\n{err}")
 
 
 def _get_serve_tf_examples_fn(model, tf_transform_output):
@@ -144,18 +156,21 @@ def run_fn(fn_args):
             fn_args.train_files,
             fn_args.data_accessor,
             tf_transform_output,
+            batch_size=128,
         )
         eval_dataset = _input_fn(
             fn_args.eval_files,
             fn_args.data_accessor,
             tf_transform_output,
+            batch_size=128,
         )
 
         model = _get_model(tf_transform_output)
 
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
 
-        model.compile(optimizer=tf.keras.optimizers.Adagrad(learning_rate=0.1))
+        model.compile(
+            optimizer=tf.keras.optimizers.Adagrad(learning_rate=1e-3))
 
     except BaseException as err:
         logging.error(f"ERROR IN run_fn before fit:\n{err}")

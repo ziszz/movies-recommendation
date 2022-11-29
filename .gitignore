@@ -1,7 +1,6 @@
 /__pycache__/
 /data/
-/pipeline/
+/outputs/
 /modules/__pycache__/
-/serving_model_dir/
 
 *.zip

@@ -44,13 +44,13 @@ def init_components(args: Dict[Text, Any]):
         schema=transform.outputs["post_transform_schema"],
         train_args=trainer_pb2.TrainArgs(
             splits=["train"],
-            num_steps=2000,
+            num_steps=args["train_steps"],
         ),
         eval_args=trainer_pb2.EvalArgs(
             splits=["eval"],
-            num_steps=1200,
+            num_steps=args["eval_steps"],
         ),
-        custom_config={"epochs": 5}
+        custom_config={"epochs": args["epochs"]}
     )
 
     pusher = components.Pusher(

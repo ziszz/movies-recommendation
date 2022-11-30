@@ -1,3 +1,5 @@
+import glob
+import os
 from typing import Any, Dict, NamedTuple, Text
 
 import keras
@@ -8,6 +10,8 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 from keras_tuner.engine import base_tuner
+from tfx.types import artifact_utils
+from tfx_bsl.coders import example_coder
 from tfx_bsl.public import tfxio
 
 from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
@@ -26,7 +30,7 @@ early_stop = tf.keras.callbacks.EarlyStopping(
 
 
 class RankingModel(tf.keras.Model):
-    def __init__(self, hyperparameters, tf_transform_output):
+    def __init__(self, hyperparameters, tf_transform_output, rating_weight, retrieval_weight, movies_uri):
         super().__init__()
 
         num_hidden_layers = hyperparameters.Choice(
@@ -59,11 +63,16 @@ class RankingModel(tf.keras.Model):
         rating_layers = []
 
         for _ in range(num_hidden_layers):
-            rating_layers.append(layers.Dense(
-                dense_unit, activation=tf.nn.relu))
+            rating_layers.append(layers.Dense(dense_unit, activation=tf.nn.relu))
             rating_layers.append(layers.Dropout(dropout_rate))
 
         rating_layers.append(layers.Dense(1))
+
+        movies_artifact = movies_uri.get()[0]
+        input_dir = artifact_utils.get_split_uri([movies_artifact], "train")
+        movie_files = glob.glob(os.path.join(input_dir, "*"))
+        movies = tf.data.TFRecordDataset(movie_files, compression_type="GZIP")
+        movies_dataset = self.extract_str_feature(movies, "title")
 
         self.unique_user_ids = tf_transform_output.vocabulary_by_name(
             f"{FEATURE_KEYS[0]}_vocab")
@@ -78,7 +87,7 @@ class RankingModel(tf.keras.Model):
             tf.keras.layers.Embedding(
                 len(self.users_vocab_str) + 1,
                 embedding_dims,
-                embeddings_initializer="he_normal",
+                embeddings_initializer='he_normal',
                 embeddings_regularizer=keras.regularizers.l2(l2_regularizers),
             ),
         ])
@@ -96,23 +105,65 @@ class RankingModel(tf.keras.Model):
             tf.keras.layers.Embedding(
                 len(self.movies_vocab_str) + 1,
                 embedding_dims,
-                embeddings_initializer="he_normal",
+                embeddings_initializer='he_normal',
                 embeddings_regularizer=keras.regularizers.l2(l2_regularizers),
             ),
         ])
 
         self.ratings = tf.keras.Sequential(rating_layers)
 
-    def call(self, inputs):
+        self.rating_task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
+            loss=tf.keras.losses.MeanSquaredError(),
+            metrics=[tf.keras.metrics.RootMeanSquaredError()],
+        )
+        self.retrieval_task: tf.keras.layers.Layer = tfrs.tasks.Retrieval(
+            metrics=tfrs.metrics.FactorizedTopK(
+                candidates=movies_dataset.batch(128).map(self.movie_model)
+            )
+        )
+
+        self.rating_weight = rating_weight
+        self.retrieval_weight = retrieval_weight
+
+    def extract_str_feature(self, dataset, feature_name):
+        np_dataset = []
+        for example in dataset:
+            np_example = example_coder.ExampleToNumpyDict(example.numpy())
+            np_dataset.append(np_example[feature_name][0].decode())
+        return tf.data.Dataset.from_tensor_slices(np_dataset)
+
+    def call(self, features: Dict[str, tf.Tensor]):
         try:
-            user_id, movie_id = inputs
+            user_embeddings = features[transformed_name(FEATURE_KEYS[0])]
+            movie_embeddings = features[transformed_name(FEATURE_KEYS[1])]
 
-            user_embedding = self.user_embeddings(user_id)
-            movie_embedding = self.movie_embeddings(movie_id)
-
-            return self.ratings(tf.concat([user_embedding, movie_embedding], axis=2))
+            return (
+                user_embeddings,
+                movie_embeddings,
+                self.rating_model(
+                    tf.concat([user_embeddings, movie_embeddings], axis=1)
+                ),
+            )
         except BaseException as err:
             logging.error(f"ERROR IN RankingModel::call:\n{err}")
+
+    def compute_loss(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
+        try:
+            ratings = features.pop("user_rating")
+
+            user_embeddings, movie_embeddings, rating_predictions = self(
+                features)
+
+            rating_loss = self.rating_task(
+                labels=ratings,
+                predictions=rating_predictions,
+            )
+            retrieval_loss = self.retrieval_task(
+                user_embeddings, movie_embeddings)
+
+            return (self.rating_weight * rating_loss + self.retrieval_weight * retrieval_loss)
+        except BaseException as err:
+            logging.error(f"ERROR IN RecommenderModel::compute_loss:\n{err}")
 
 
 class RecommenderModel(tfrs.Model):
@@ -161,11 +212,11 @@ def _get_model(hyperparameters, tf_transform_output):
     try:
         learning_rate = hyperparameters.Choice(
             "learning_rate",
-            values=[1e-2, 1e-3, 1e-4]
+            values=[1e-1, 1e-2, 1e-3, 1e-4]
         )
         model = RecommenderModel(hyperparameters, tf_transform_output)
         model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
+            optimizer=tf.keras.optimizers.Adagrad(learning_rate=learning_rate))
         return model
     except BaseException as err:
         logging.error(f"ERROR IN get_model:\n{err}")

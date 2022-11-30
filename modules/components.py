@@ -75,7 +75,6 @@ def init_components(args: Dict[Text, Any]):
                 splits=["eval"],
                 num_steps=args["eval_steps"],
             ),
-            custom_config={"epochs": args["epochs"]}
         )
 
         model_resolver = Resolver(

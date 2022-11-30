@@ -1,3 +1,4 @@
+import glob
 import os
 from typing import Dict, Text
 
@@ -7,26 +8,36 @@ import tensorflow_recommenders as tfrs
 import tensorflow_transform as tft
 from absl import logging
 from keras import layers
+from tfx.types import artifact_utils
+from tfx_bsl.coders import example_coder
 
-from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
+from modules.transform import FEATURE_KEYS, transformed_name
 from modules.tuner import input_fn
 
 
-class RankingModel(tf.keras.Model):
-    def __init__(self, hyperparameters, tf_transform_output):
+class RecommenderModel(tf.keras.Model):
+    def __init__(self, hyperparameters, tf_transform_output, rating_weight, retrieval_weight, movies_uri):
         super().__init__()
-        self.unique_user_ids = tf_transform_output.vocabulary_by_name(
-            f"{FEATURE_KEYS[0]}_vocab")
-        self.users_vocab_str = [b.decode() for b in self.unique_user_ids]
-        
+
         rating_layers = []
 
         for _ in range(hyperparameters["num_hidden_layers"]):
             rating_layers.append(layers.Dense(
                 hyperparameters["dense_unit"], activation=tf.nn.relu))
-            rating_layers.append(layers.Dropout(hyperparameters["dropout_rate"]))
+            rating_layers.append(layers.Dropout(
+                hyperparameters["dropout_rate"]))
 
         rating_layers.append(layers.Dense(1))
+
+        movies_artifact = movies_uri.get()[0]
+        input_dir = artifact_utils.get_split_uri([movies_artifact], "train")
+        movie_files = glob.glob(os.path.join(input_dir, "*"))
+        movies = tf.data.TFRecordDataset(movie_files, compression_type="GZIP")
+        movies_dataset = self.extract_str_feature(movies, "title")
+
+        self.unique_user_ids = tf_transform_output.vocabulary_by_name(
+            f"{FEATURE_KEYS[0]}_vocab")
+        self.users_vocab_str = [b.decode() for b in self.unique_user_ids]
 
         self.user_embeddings = tf.keras.Sequential([
             layers.Input(shape=(1,), name=transformed_name(
@@ -38,7 +49,8 @@ class RankingModel(tf.keras.Model):
                 len(self.users_vocab_str) + 1,
                 hyperparameters["embedding_dims"],
                 embeddings_initializer='he_normal',
-                embeddings_regularizer=keras.regularizers.l2(hyperparameters["l2_regularizers"]),
+                embeddings_regularizer=keras.regularizers.l2(
+                    hyperparameters["l2_regularizers"]),
             ),
         ])
 
@@ -56,51 +68,65 @@ class RankingModel(tf.keras.Model):
                 len(self.movies_vocab_str) + 1,
                 hyperparameters["embedding_dims"],
                 embeddings_initializer='he_normal',
-                embeddings_regularizer=keras.regularizers.l2(hyperparameters["l2_regularizers"]),
+                embeddings_regularizer=keras.regularizers.l2(
+                    hyperparameters["l2_regularizers"]),
             ),
         ])
 
         self.ratings = tf.keras.Sequential(rating_layers)
 
-    def call(self, inputs):
-        try:
-            user_id, movie_id = inputs
-
-            user_embedding = self.user_embeddings(user_id)
-            movie_embedding = self.movie_embeddings(movie_id)
-
-            return self.ratings(tf.concat([user_embedding, movie_embedding], axis=2))
-        except BaseException as err:
-            logging.error(f"ERROR IN RankingModel::call:\n{err}")
-
-
-class RecommenderModel(tfrs.Model):
-    def __init__(self, hyperparameters, tf_transform_output):
-        super().__init__()
-        self.ranking_model = RankingModel(hyperparameters, tf_transform_output)
-        self.task = tfrs.tasks.Ranking(
+        self.rating_task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
             loss=tf.keras.losses.MeanSquaredError(),
             metrics=[tf.keras.metrics.RootMeanSquaredError()],
         )
+        self.retrieval_task: tf.keras.layers.Layer = tfrs.tasks.Retrieval(
+            metrics=tfrs.metrics.FactorizedTopK(
+                candidates=movies_dataset.batch(128).map(self.movie_model)
+            )
+        )
+
+        self.rating_weight = rating_weight
+        self.retrieval_weight = retrieval_weight
+
+    def extract_str_feature(self, dataset, feature_name):
+        np_dataset = []
+        for example in dataset:
+            np_example = example_coder.ExampleToNumpyDict(example.numpy())
+            np_dataset.append(np_example[feature_name][0].decode())
+        return tf.data.Dataset.from_tensor_slices(np_dataset)
 
     def call(self, features: Dict[str, tf.Tensor]):
         try:
-            return self.ranking_model((
-                features[transformed_name(FEATURE_KEYS[0])],
-                features[transformed_name(FEATURE_KEYS[1])]
-            ))
-        except BaseException as err:
-            logging.error(f"ERROR IN RecommenderModel::call:\n{err}")
+            user_embeddings = features[transformed_name(FEATURE_KEYS[0])]
+            movie_embeddings = features[transformed_name(FEATURE_KEYS[1])]
 
-    def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
+            return (
+                user_embeddings,
+                movie_embeddings,
+                self.rating_model(
+                    tf.concat([user_embeddings, movie_embeddings], axis=1)
+                ),
+            )
+        except BaseException as err:
+            logging.error(f"ERROR IN RankingModel::call:\n{err}")
+
+    def compute_loss(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         try:
-            labels = features.pop(transformed_name(LABEL_KEY))
-            rating_predictions = self(features)
+            ratings = features.pop("user_rating")
 
-            return self.task(labels=labels, predictions=rating_predictions)
+            user_embeddings, movie_embeddings, rating_predictions = self(
+                features)
+
+            rating_loss = self.rating_task(
+                labels=ratings,
+                predictions=rating_predictions,
+            )
+            retrieval_loss = self.retrieval_task(
+                user_embeddings, movie_embeddings)
+
+            return (self.rating_weight * rating_loss + self.retrieval_weight * retrieval_loss)
         except BaseException as err:
-            logging.error(
-                f"ERROR IN RecommenderModel::compute_loss:\n{err}")
+            logging.error(f"ERROR IN RecommenderModel::compute_loss:\n{err}")
 
 
 def _get_serve_tf_examples_fn(model, tf_transform_output):
@@ -185,15 +211,13 @@ def run_fn(fn_args):
             model_checkpoint_callback
         ]
 
-        
-
     except BaseException as err:
         logging.error(f"ERROR IN run_fn before fit:\n{err}")
 
     try:
         model.fit(
             train_dataset,
-            epochs=fn_args.custom_config["epochs"],
+            epochs=hyperparameters["tuner/epochs"],
             steps_per_epoch=fn_args.train_steps,
             validation_data=eval_dataset,
             validation_steps=fn_args.eval_steps,

@@ -130,7 +130,10 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
 
 def _get_model(hyperparameters, tf_transform_output):
     try:
-        return RecommenderModel(hyperparameters, tf_transform_output)
+        model = RecommenderModel(hyperparameters, tf_transform_output)
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=hyperparameters["learning_rate"]))
+        return model
     except BaseException as err:
         logging.error(f"ERROR IN get_model:\n{err}")
 
@@ -182,8 +185,7 @@ def run_fn(fn_args):
             model_checkpoint_callback
         ]
 
-        model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4))
+        
 
     except BaseException as err:
         logging.error(f"ERROR IN run_fn before fit:\n{err}")

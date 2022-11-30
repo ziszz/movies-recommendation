@@ -159,7 +159,14 @@ def input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
 
 def _get_model(hyperparameters, tf_transform_output):
     try:
-        return RecommenderModel(hyperparameters, tf_transform_output)
+        learning_rate = hyperparameters.Choice(
+            "learning_rate",
+            values=[1e-2, 1e-3, 1e-4]
+        )
+        model = RecommenderModel(hyperparameters, tf_transform_output)
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
+        return model
     except BaseException as err:
         logging.error(f"ERROR IN get_model:\n{err}")
 
@@ -193,7 +200,7 @@ def tuner_fn(fn_args):
             directory=fn_args.working_dir,
             project_name="kt_hyperband",
         )
-        
+
         return TunerFnResult(
             tuner=tuner,
             fit_kwargs={

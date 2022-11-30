@@ -54,6 +54,22 @@ def init_components(args: Dict[Text, Any]):
             ),
             custom_config={"epochs": args["epochs"]}
         )
+        
+        tuner = components.Tuner(
+            module_file=os.path.abspath(args["tuner_module"]),
+            examples=transform.outputs["transformed_examples"],
+            transform_graph=transform.outputs["transform_graph"],
+            schema=schema_gen.outputs["schema"],
+            train_args=trainer_pb2.TrainArgs(
+                splits=["train"],
+                num_steps=args["train_steps"],
+            ),
+            eval_args=trainer_pb2.EvalArgs(
+                splits=["eval"],
+                num_steps=args["eval_steps"],
+            ),
+            custom_config={"epochs": args["epochs"]}
+        )
 
         pusher = components.Pusher(
             model=trainer.outputs["model"],
@@ -72,6 +88,7 @@ def init_components(args: Dict[Text, Any]):
             schema_gen,
             example_validator,
             transform,
+            tuner,
             trainer,
             pusher,
         )

@@ -157,7 +157,7 @@ def input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
         logging.error(f"ERROR IN _input_fn:\n{err}")
 
 
-def get_model(hyperparameters, tf_transform_output):
+def _get_model(hyperparameters, tf_transform_output):
     try:
         return RecommenderModel(hyperparameters, tf_transform_output)
     except BaseException as err:
@@ -183,7 +183,7 @@ def tuner_fn(fn_args):
         )
 
         tuner = kt.Hyperband(
-            hypermodel=lambda hp: get_model(hp, tf_transform_output),
+            hypermodel=lambda hp: _get_model(hp, tf_transform_output),
             objective=kt.Objective(
                 "val_root_mean_squared_error",
                 direction="min",

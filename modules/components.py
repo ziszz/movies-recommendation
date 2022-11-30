@@ -38,12 +38,12 @@ def init_components(args: Dict[Text, Any]):
             schema=schema_gen.outputs["schema"],
             module_file=os.path.abspath(args["transform_module"])
         )
-
-        trainer = components.Trainer(
-            module_file=os.path.abspath(args["trainer_module"]),
+        
+        tuner = components.Tuner(
+            module_file=os.path.abspath(args["tuner_module"]),
             examples=transform.outputs["transformed_examples"],
             transform_graph=transform.outputs["transform_graph"],
-            schema=transform.outputs["post_transform_schema"],
+            schema=schema_gen.outputs["post_transform_schema"],
             train_args=trainer_pb2.TrainArgs(
                 splits=["train"],
                 num_steps=args["train_steps"],
@@ -54,12 +54,13 @@ def init_components(args: Dict[Text, Any]):
             ),
             custom_config={"epochs": args["epochs"]}
         )
-        
-        tuner = components.Tuner(
-            module_file=os.path.abspath(args["tuner_module"]),
+
+        trainer = components.Trainer(
+            module_file=os.path.abspath(args["trainer_module"]),
             examples=transform.outputs["transformed_examples"],
             transform_graph=transform.outputs["transform_graph"],
-            schema=schema_gen.outputs["schema"],
+            schema=transform.outputs["post_transform_schema"],
+            hyperparameters=tuner.outputs["best_hyperparameters"],
             train_args=trainer_pb2.TrainArgs(
                 splits=["train"],
                 num_steps=args["train_steps"],

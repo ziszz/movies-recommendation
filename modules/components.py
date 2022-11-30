@@ -3,14 +3,19 @@ from typing import Any, Dict, Text
 
 from absl import logging
 from tfx import components
+from tfx.dsl.input_resolution.strategies.latest_blessed_model_strategy import \
+    LatestBlessedModelStrategy
 from tfx.proto import example_gen_pb2, pusher_pb2, trainer_pb2
+from tfx.types import Channel
+from tfx.types.standard_artifacts import Model, ModelBlessing
 
 
 def init_components(args: Dict[Text, Any]):
     try:
         output = example_gen_pb2.Output(
             split_config=example_gen_pb2.SplitConfig(splits=[
-                example_gen_pb2.SplitConfig.Split(name="train", hash_buckets=8),
+                example_gen_pb2.SplitConfig.Split(
+                    name="train", hash_buckets=8),
                 example_gen_pb2.SplitConfig.Split(name="eval", hash_buckets=2),
             ])
         )
@@ -38,7 +43,7 @@ def init_components(args: Dict[Text, Any]):
             schema=schema_gen.outputs["schema"],
             module_file=os.path.abspath(args["transform_module"])
         )
-        
+
         tuner = components.Tuner(
             module_file=os.path.abspath(args["tuner_module"]),
             examples=transform.outputs["transformed_examples"],
@@ -72,6 +77,12 @@ def init_components(args: Dict[Text, Any]):
             custom_config={"epochs": args["epochs"]}
         )
 
+        model_resolver = components.Resolver(
+            strategy_class=LatestBlessedModelStrategy,
+            model=Channel(type=Model),
+            model_blessing=Channel(type=ModelBlessing),
+        ).with_id("Latest_blessed_model_resolve")
+
         pusher = components.Pusher(
             model=trainer.outputs["model"],
             push_destination=pusher_pb2.PushDestination(
@@ -91,6 +102,7 @@ def init_components(args: Dict[Text, Any]):
             transform,
             tuner,
             trainer,
+            model_resolver,
             pusher,
         )
     except BaseException as err:

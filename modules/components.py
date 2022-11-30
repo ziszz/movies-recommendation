@@ -3,6 +3,7 @@ from typing import Any, Dict, Text
 
 from absl import logging
 from tfx import components
+from tfx.dsl.components.common.resolver import Resolver
 from tfx.dsl.input_resolution.strategies.latest_blessed_model_strategy import \
     LatestBlessedModelStrategy
 from tfx.proto import example_gen_pb2, pusher_pb2, trainer_pb2
@@ -77,7 +78,7 @@ def init_components(args: Dict[Text, Any]):
             custom_config={"epochs": args["epochs"]}
         )
 
-        model_resolver = components.Resolver(
+        model_resolver = Resolver(
             strategy_class=LatestBlessedModelStrategy,
             model=Channel(type=Model),
             model_blessing=Channel(type=ModelBlessing),

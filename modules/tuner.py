@@ -29,7 +29,7 @@ early_stop = tf.keras.callbacks.EarlyStopping(
 )
 
 
-class RankingModel(tf.keras.Model):
+class RecommenderModel(tf.keras.Model):
     def __init__(self, hyperparameters, tf_transform_output, rating_weight, retrieval_weight, movies_uri):
         super().__init__()
 
@@ -63,7 +63,8 @@ class RankingModel(tf.keras.Model):
         rating_layers = []
 
         for _ in range(num_hidden_layers):
-            rating_layers.append(layers.Dense(dense_unit, activation=tf.nn.relu))
+            rating_layers.append(layers.Dense(
+                dense_unit, activation=tf.nn.relu))
             rating_layers.append(layers.Dropout(dropout_rate))
 
         rating_layers.append(layers.Dense(1))
@@ -145,7 +146,7 @@ class RankingModel(tf.keras.Model):
                 ),
             )
         except BaseException as err:
-            logging.error(f"ERROR IN RankingModel::call:\n{err}")
+            logging.error(f"ERROR IN RecommenderModel::call:\n{err}")
 
     def compute_loss(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         try:
@@ -166,35 +167,6 @@ class RankingModel(tf.keras.Model):
             logging.error(f"ERROR IN RecommenderModel::compute_loss:\n{err}")
 
 
-class RecommenderModel(tfrs.Model):
-    def __init__(self, hyperparameters, tf_transform_output):
-        super().__init__()
-        self.ranking_model = RankingModel(hyperparameters, tf_transform_output)
-        self.task = tfrs.tasks.Ranking(
-            loss=tf.keras.losses.MeanSquaredError(),
-            metrics=[tf.keras.metrics.RootMeanSquaredError()],
-        )
-
-    def call(self, features: Dict[str, tf.Tensor]):
-        try:
-            return self.ranking_model((
-                features[transformed_name(FEATURE_KEYS[0])],
-                features[transformed_name(FEATURE_KEYS[1])]
-            ))
-        except BaseException as err:
-            logging.error(f"ERROR IN RecommenderModel::call:\n{err}")
-
-    def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
-        try:
-            labels = features.pop(transformed_name(LABEL_KEY))
-            rating_predictions = self(features)
-
-            return self.task(labels=labels, predictions=rating_predictions)
-        except BaseException as err:
-            logging.error(
-                f"ERROR IN RecommenderModel::compute_loss:\n{err}")
-
-
 def input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
     try:
         return data_accessor.tf_dataset_factory(
@@ -208,13 +180,19 @@ def input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
         logging.error(f"ERROR IN _input_fn:\n{err}")
 
 
-def _get_model(hyperparameters, tf_transform_output):
+def _get_model(hyperparameters, tf_transform_output, rating_weight, retrieval_weight, movies_uri):
     try:
         learning_rate = hyperparameters.Choice(
             "learning_rate",
             values=[1e-1, 1e-2, 1e-3, 1e-4]
         )
-        model = RecommenderModel(hyperparameters, tf_transform_output)
+        model = RecommenderModel(
+            hyperparameters,
+            tf_transform_output,
+            rating_weight,
+            retrieval_weight,
+            movies_uri,
+        )
         model.compile(
             optimizer=tf.keras.optimizers.Adagrad(learning_rate=learning_rate))
         return model
@@ -241,7 +219,13 @@ def tuner_fn(fn_args):
         )
 
         tuner = kt.Hyperband(
-            hypermodel=lambda hp: _get_model(hp, tf_transform_output),
+            hypermodel=lambda hp: _get_model(
+                hyperparameters=hp,
+                tf_transform_output=tf_transform_output,
+                rating_weight=0.0,
+                retrieval_weight=1.0,
+                movies_uri=fn_args.custom_config["movies"],
+            ),
             objective=kt.Objective(
                 "val_root_mean_squared_error",
                 direction="min",

@@ -108,7 +108,7 @@ class RecommenderModel(tf.keras.Model):
                 ),
             )
         except BaseException as err:
-            logging.error(f"ERROR IN RankingModel::call:\n{err}")
+            logging.error(f"ERROR IN RecommenderModel::call:\n{err}")
 
     def compute_loss(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         try:
@@ -154,9 +154,15 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         logging.error(f"ERROR IN _get_serve_tf_examples_fn:\n{err}")
 
 
-def _get_model(hyperparameters, tf_transform_output):
+def _get_model(hyperparameters, tf_transform_output, rating_weight, retrieval_weight, movies_uri):
     try:
-        model = RecommenderModel(hyperparameters, tf_transform_output)
+        model = RecommenderModel(
+            hyperparameters,
+            tf_transform_output,
+            rating_weight,
+            retrieval_weight,
+            movies_uri,
+        )
         model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=hyperparameters["learning_rate"]))
         return model
@@ -186,7 +192,13 @@ def run_fn(fn_args):
             batch_size=128,
         )
 
-        model = _get_model(hyperparameters, tf_transform_output)
+        model = _get_model(
+            hyperparameters=hyperparameters,
+            tf_transform_output=tf_transform_output,
+            rating_weight=0.0, 
+            retrieval_weight=1.0,
+            movies_uri=fn_args.custom_config["movies"],
+        )
 
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
 

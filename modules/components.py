@@ -58,7 +58,10 @@ def init_components(args: Dict[Text, Any]):
                 splits=["eval"],
                 num_steps=args["eval_steps"],
             ),
-            custom_config={"epochs": args["epochs"]}
+            custom_config={
+                "epochs": args["epochs"],
+                "movies": transform.outputs['transformed_examples'],
+            }
         )
 
         trainer = components.Trainer(
@@ -75,6 +78,9 @@ def init_components(args: Dict[Text, Any]):
                 splits=["eval"],
                 num_steps=args["eval_steps"],
             ),
+            custom_config={
+                "movies": transform.outputs['transformed_examples'],
+            }
         )
 
         model_resolver = Resolver(

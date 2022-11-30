@@ -48,7 +48,7 @@ def init_components(args: Dict[Text, Any]):
             module_file=os.path.abspath(args["tuner_module"]),
             examples=transform.outputs["transformed_examples"],
             transform_graph=transform.outputs["transform_graph"],
-            schema=schema_gen.outputs["post_transform_schema"],
+            schema=transform.outputs["post_transform_schema"],
             train_args=trainer_pb2.TrainArgs(
                 splits=["train"],
                 num_steps=args["train_steps"],

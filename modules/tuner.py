@@ -58,7 +58,7 @@ class RankingModel(tf.keras.Model):
 
         rating_layers = []
 
-        for _ in num_hidden_layers:
+        for _ in range(num_hidden_layers):
             rating_layers.append(layers.Dense(
                 dense_unit, activation=tf.nn.relu))
             rating_layers.append(layers.Dropout(dropout_rate))

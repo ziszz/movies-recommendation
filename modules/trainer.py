@@ -21,7 +21,7 @@ class RankingModel(tf.keras.Model):
         
         rating_layers = []
 
-        for _ in hyperparameters["num_hidden_layers"]:
+        for _ in range(hyperparameters["num_hidden_layers"]):
             rating_layers.append(layers.Dense(
                 hyperparameters["dense_unit"], activation=tf.nn.relu))
             rating_layers.append(layers.Dropout(hyperparameters["dropout_rate"]))

@@ -60,7 +60,6 @@ def init_components(args: Dict[Text, Any]):
             ),
             custom_config={
                 "epochs": args["epochs"],
-                "movies": transform.outputs['transformed_examples'],
             }
         )
 
@@ -69,7 +68,7 @@ def init_components(args: Dict[Text, Any]):
             examples=transform.outputs["transformed_examples"],
             transform_graph=transform.outputs["transform_graph"],
             schema=transform.outputs["post_transform_schema"],
-            hyperparameters=tuner.outputs["best_hyperparameters"],
+            # hyperparameters=tuner.outputs["best_hyperparameters"],
             train_args=trainer_pb2.TrainArgs(
                 splits=["train"],
                 num_steps=args["train_steps"],
@@ -79,7 +78,8 @@ def init_components(args: Dict[Text, Any]):
                 num_steps=args["eval_steps"],
             ),
             custom_config={
-                "movies": transform.outputs['transformed_examples'],
+                "epochs": args["epochs"],
+                "movies":transform.outputs['transformed_examples'],
             }
         )
 
@@ -106,7 +106,7 @@ def init_components(args: Dict[Text, Any]):
             schema_gen,
             example_validator,
             transform,
-            tuner,
+            # tuner,
             trainer,
             model_resolver,
             pusher,

@@ -1,4 +1,3 @@
-import glob
 import os
 from typing import Dict, Text
 
@@ -9,13 +8,17 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 
-from modules.transform import FEATURE_KEYS, transformed_name
+from modules.transform import (CATEGORICAL_FEATURE, LABEL_KEY,
+                               NUMERICAL_FEATURE, transformed_name)
 from modules.tuner import input_fn
 
 
-class RecommenderModel(tfrs.Model):
+class RecommenderNet(tfrs.Model):
     def __init__(self, tf_transform_output, movies_data):
         super().__init__()
+
+        self.rating_weights = 1.0
+        self.retrieval_weights = 1.0
 
         self.user_model: tf.keras.Model = self._build_user_model(
             tf_transform_output, 256, 1e-3)
@@ -23,7 +26,18 @@ class RecommenderModel(tfrs.Model):
         self.movie_model: tf.keras.Model = self._build_movie_model(
             tf_transform_output, 256, 1e-3)
 
-        self.task = tfrs.tasks.Retrieval(
+        self.rating_model = tf.keras.Sequential([
+            tf.keras.layers.Dense(256, activation=tf.nn.relu),
+            tf.keras.layers.Dense(128, activation=tf.nn.relu),
+            tf.keras.layers.Dense(1),
+        ])
+
+        self.rating_task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
+            loss=tf.keras.losses.MeanSquaredError(),
+            metrics=[tf.keras.metrics.RootMeanSquaredError()],
+        )
+
+        self.retrieval_task = tfrs.tasks.Retrieval(
             metrics=tfrs.metrics.FactorizedTopK(
                 candidates=movies_data.batch(128).map(self.movie_model)
             )
@@ -32,15 +46,12 @@ class RecommenderModel(tfrs.Model):
     def _build_user_model(self, tf_transform_output, embedding_dims, l2_regularizers):
         try:
             unique_user_ids = tf_transform_output.vocabulary_by_name(
-                f"{FEATURE_KEYS[0]}_vocab")
+                f"{NUMERICAL_FEATURE}_vocab")
             users_vocab_str = [b.decode() for b in unique_user_ids]
 
             model = tf.keras.Sequential([
-                layers.Input(shape=(1,), name=transformed_name(
-                    FEATURE_KEYS[0]), dtype=tf.int64),
-                layers.Lambda(lambda x: tf.as_string(x)),
                 layers.StringLookup(
-                    vocabulary=unique_user_ids, mask_token=None),
+                    vocabulary=users_vocab_str, mask_token=None),
                 tf.keras.layers.Embedding(
                     len(users_vocab_str) + 1,
                     embedding_dims,
@@ -53,20 +64,17 @@ class RecommenderModel(tfrs.Model):
             return model
         except BaseException as err:
             logging.error(
-                f"ERROR IN RecommenderModel::_build_user_model:\n{err}")
+                f"ERROR IN RecommenderNet::_build_user_model:\n{err}")
 
     def _build_movie_model(self, tf_transform_output, embedding_dims, l2_regularizers):
         try:
-            unique_movie_ids = tf_transform_output.vocabulary_by_name(
-                f"{FEATURE_KEYS[1]}_vocab")
-            movies_vocab_str = [b.decode() for b in unique_movie_ids]
+            unique_movie_titles = tf_transform_output.vocabulary_by_name(
+                f"{CATEGORICAL_FEATURE}_vocab")
+            movies_vocab_str = [b.decode() for b in unique_movie_titles]
 
             model = tf.keras.Sequential([
-                layers.Input(shape=(1,), name=transformed_name(
-                    FEATURE_KEYS[1]), dtype=tf.int64),
-                layers.Lambda(lambda x: tf.as_string(x)),
                 layers.StringLookup(
-                    vocabulary=unique_movie_ids, mask_token=None),
+                    vocabulary=movies_vocab_str,  mask_token=None),
                 tf.keras.layers.Embedding(
                     len(movies_vocab_str) + 1,
                     embedding_dims,
@@ -79,21 +87,39 @@ class RecommenderModel(tfrs.Model):
             return model
         except BaseException as err:
             logging.error(
-                f"ERROR IN RecommenderModel::_build_movie_model:\n{err}")
+                f"ERROR IN RecommenderNet::_build_movie_model:\n{err}")
+
+    def call(self, features: Dict[Text, tf.Tensor]):
+        try:
+            user_embeddings = self.user_model(
+                features[transformed_name(NUMERICAL_FEATURE)])
+            movie_embeddings = self.movie_model(
+                features[transformed_name(CATEGORICAL_FEATURE)])
+
+            return (
+                user_embeddings,
+                movie_embeddings,
+                self.rating_model(
+                    tf.concat([user_embeddings, movie_embeddings], axis=1)),
+            )
+        except BaseException as err:
+            logging.error(f"ERROR IN RecommenderNet::call:\n{err}")
 
     def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
         try:
-            user_embeddings = tf.squeeze(
-                self.user_model(transformed_name(features[FEATURE_KEYS[0]])), axis=1)
-            positive_movie_embeddings = self.movie_model(
-                transformed_name(features[FEATURE_KEYS[1]]))
+            ratings = features[transformed_name(LABEL_KEY)]
 
-            task = self.task(user_embeddings, positive_movie_embeddings)
+            user_embeddings, movie_embeddings, rating_predictions = self(
+                features)
 
+            rating_loss = self.rating_task(
+                labels=ratings, predictions=rating_predictions)
+            retrieval_loss = self.retrieval_task(
+                user_embeddings, movie_embeddings)
+
+            return (self.rating_weight + rating_loss + self.retrieval_loss + retrieval_loss)
         except BaseException as err:
-            logging.error(f"ERROR IN RecommenderModel::compute_loss:\n{err}")
-
-        return task
+            logging.error(f"ERROR IN RecommenderNet::compute_loss:\n{err}")
 
 
 def _get_serve_tf_examples_fn(model, tf_transform_output):
@@ -123,7 +149,7 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
 
 def _get_model(tf_transform_output, movies_data):
     try:
-        model = RecommenderModel(
+        model = RecommenderNet(
             tf_transform_output=tf_transform_output,
             movies_data=movies_data,
         )
@@ -150,9 +176,12 @@ def run_fn(fn_args):
         eval_dataset = input_fn(
             fn_args.eval_files, tf_transform_output, fn_args.custom_config["epochs"], batch_size=128)
 
+        movies_data = train_dataset.map(
+            lambda f, l: f[transformed_name(CATEGORICAL_FEATURE)])
+
         model = _get_model(
             tf_transform_output=tf_transform_output,
-            movies_data=train_dataset,
+            movies_data=movies_data,
         )
 
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)

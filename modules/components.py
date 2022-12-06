@@ -45,23 +45,23 @@ def init_components(args: Dict[Text, Any]):
             module_file=os.path.abspath(args["transform_module"])
         )
 
-        tuner = components.Tuner(
-            module_file=os.path.abspath(args["tuner_module"]),
-            examples=transform.outputs["transformed_examples"],
-            transform_graph=transform.outputs["transform_graph"],
-            schema=transform.outputs["post_transform_schema"],
-            train_args=trainer_pb2.TrainArgs(
-                splits=["train"],
-                num_steps=args["train_steps"],
-            ),
-            eval_args=trainer_pb2.EvalArgs(
-                splits=["eval"],
-                num_steps=args["eval_steps"],
-            ),
-            custom_config={
-                "epochs": args["epochs"],
-            }
-        )
+        # tuner = components.Tuner(
+        #     module_file=os.path.abspath(args["tuner_module"]),
+        #     examples=transform.outputs["transformed_examples"],
+        #     transform_graph=transform.outputs["transform_graph"],
+        #     schema=transform.outputs["post_transform_schema"],
+        #     train_args=trainer_pb2.TrainArgs(
+        #         splits=["train"],
+        #         num_steps=args["train_steps"],
+        #     ),
+        #     eval_args=trainer_pb2.EvalArgs(
+        #         splits=["eval"],
+        #         num_steps=args["eval_steps"],
+        #     ),
+        #     custom_config={
+        #         "epochs": args["epochs"],
+        #     }
+        # )
 
         trainer = components.Trainer(
             module_file=os.path.abspath(args["trainer_module"]),
@@ -79,7 +79,7 @@ def init_components(args: Dict[Text, Any]):
             ),
             custom_config={
                 "epochs": args["epochs"],
-                "movies":transform.outputs['transformed_examples'],
+                "movies": transform.outputs['transformed_examples'],
             }
         )
 

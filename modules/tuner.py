@@ -14,7 +14,8 @@ from tfx.types import artifact_utils
 from tfx_bsl.coders import example_coder
 from tfx_bsl.public import tfxio
 
-from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
+from modules.transform import (CATEGORICAL_FEATURE, LABEL_KEY,
+                               NUMERICAL_FEATURE, transformed_name)
 
 TunerFnResult = NamedTuple("TunerFnResult", [
     ("tuner", base_tuner.BaseTuner),

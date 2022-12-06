@@ -2,11 +2,8 @@ import tensorflow as tf
 import tensorflow_transform as tft
 from absl import logging
 
-FEATURE_KEYS = [
-    "userId",
-    "movieId",
-]
-
+NUMERICAL_FEATURE = "userId"
+CATEGORICAL_FEATURE = "title"
 LABEL_KEY = "rating"
 
 
@@ -18,15 +15,25 @@ def preprocessing_fn(inputs):
     try:
         outputs = {}
 
-        for key in FEATURE_KEYS:
-            outputs[transformed_name(key)] = tf.cast(inputs[key], tf.int64)
-            tft.compute_and_apply_vocabulary(
-                inputs[key],
-                num_oov_buckets=1,
-                vocab_filename=f"{key}_vocab"
-            )
+        outputs[transformed_name(NUMERICAL_FEATURE)] = tf.cast(
+            inputs[NUMERICAL_FEATURE], tf.int64)
+        outputs[transformed_name(CATEGORICAL_FEATURE)] = tf.strings.lower(
+            inputs[CATEGORICAL_FEATURE])
 
-        outputs[transformed_name(LABEL_KEY)] = tf.cast(inputs[key], tf.int64)
+        tft.compute_and_apply_vocabulary(
+            inputs[NUMERICAL_FEATURE],
+            num_oov_buckets=1,
+            vocab_filename=f"{NUMERICAL_FEATURE}_vocab"
+        )
+        tft.compute_and_apply_vocabulary(
+            inputs[CATEGORICAL_FEATURE],
+            num_oov_buckets=1,
+            vocab_filename=f"{CATEGORICAL_FEATURE}_vocab"
+        )
+
+        outputs[transformed_name(LABEL_KEY)] = tf.cast(
+            inputs[LABEL_KEY], tf.int64)
+
         return outputs
     except BaseException as err:
         logging.error(f"ERROR IN preprocessing_fn:\n{err}")

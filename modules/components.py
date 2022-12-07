@@ -79,7 +79,6 @@ def init_components(args: Dict[Text, Any]):
             ),
             custom_config={
                 "epochs": args["epochs"],
-                "movies": transform.outputs['transformed_examples'],
             }
         )
 

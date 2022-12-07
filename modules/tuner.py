@@ -14,8 +14,7 @@ from tfx.types import artifact_utils
 from tfx_bsl.coders import example_coder
 from tfx_bsl.public import tfxio
 
-from modules.transform import (CATEGORICAL_FEATURE, LABEL_KEY,
-                               NUMERICAL_FEATURE, transformed_name)
+from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
 
 TunerFnResult = NamedTuple("TunerFnResult", [
     ("tuner", base_tuner.BaseTuner),
@@ -144,25 +143,18 @@ class RecommenderModel(tf.keras.Model):
             logging.error(f"ERROR IN RecommenderModel::compute_loss:\n{err}")
 
 
-def _gzip_reader_fn(filenames):
-    return tf.data.TFRecordDataset(filenames, compression_type="GZIP")
-
-
-def input_fn(file_pattern, tf_transform_output, num_epochs, batch_size=64):
-    transform_feature_spec = (
-        tf_transform_output.transformed_feature_spec().copy()
-    )
-
-    dataset = tf.data.experimental.make_batched_features_dataset(
-        file_pattern=file_pattern,
-        batch_size=batch_size,
-        features=transform_feature_spec,
-        reader=_gzip_reader_fn,
-        num_epochs=num_epochs,
-        label_key=transformed_name(LABEL_KEY),
-    )
-
-    return dataset
+def input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
+    try:
+        return data_accessor.tf_dataset_factory(
+            file_pattern,
+            tfxio.TensorFlowDatasetOptions(
+                batch_size=batch_size,
+                label_key=transformed_name(LABEL_KEY),
+            ),
+            schema=tf_transform_output.transformed_metadata.schema
+        ).repeat()
+    except BaseException as err:
+        logging.error(f"ERROR IN input_fn:\n{err}")
 
 
 def _get_model(hyperparameters, tf_transform_output, rating_weight, retrieval_weight, movies_uri):

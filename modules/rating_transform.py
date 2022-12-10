@@ -1,15 +1,11 @@
-import os
-
 import tensorflow as tf
 import tensorflow_transform as tft
 from absl import logging
 
+from modules.movies_transform import transformed_name
+
 NUMERIC_FEATURE = "userId"
 CATEGORICAL_FEATURE = "title"
-
-
-def transformed_name(key):
-    return f"{key}_xf"
 
 
 def preprocessing_fn(inputs):
@@ -33,4 +29,4 @@ def preprocessing_fn(inputs):
         )
         return outputs
     except BaseException as err:
-        logging.error(f"ERROR IN _get_model:\n{err}")
+        logging.error(f"ERROR IN preprocessing_fn:\n{err}")

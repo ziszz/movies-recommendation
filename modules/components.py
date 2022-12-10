@@ -21,28 +21,52 @@ def init_components(args: Dict[Text, Any]):
             ])
         )
 
-        example_gen = components.CsvExampleGen(
-            input_base=args["data_dir"],
+        movies_example_gen = components.CsvExampleGen(
+            input_base=args["movies_data_dir"],
             output_config=output
         )
 
-        statistics_gen = components.StatisticsGen(
-            examples=example_gen.outputs["examples"]
+        rating_example_gen = components.CsvExampleGen(
+            input_base=args["rating_data_dir"],
+            output_config=output
         )
 
-        schema_gen = components.SchemaGen(
-            statistics=statistics_gen.outputs["statistics"]
+        movies_statistics_gen = components.StatisticsGen(
+            examples=movies_example_gen.outputs["examples"]
         )
 
-        example_validator = components.ExampleValidator(
-            statistics=statistics_gen.outputs["statistics"],
-            schema=schema_gen.outputs["schema"],
+        rating_statistics_gen = components.StatisticsGen(
+            examples=rating_example_gen.outputs["examples"]
         )
 
-        transform = components.Transform(
-            examples=example_gen.outputs["examples"],
-            schema=schema_gen.outputs["schema"],
-            module_file=os.path.abspath(args["transform_module"])
+        movies_schema_gen = components.SchemaGen(
+            statistics=movies_statistics_gen.outputs["statistics"]
+        )
+
+        rating_schema_gen = components.SchemaGen(
+            statistics=rating_statistics_gen.outputs["statistics"]
+        )
+
+        movies_example_validator = components.ExampleValidator(
+            statistics=movies_statistics_gen.outputs["statistics"],
+            schema=movies_schema_gen.outputs["schema"],
+        )
+
+        rating_example_validator = components.ExampleValidator(
+            statistics=rating_statistics_gen.outputs["statistics"],
+            schema=rating_schema_gen.outputs["schema"],
+        )
+
+        movies_transform = components.Transform(
+            examples=movies_example_gen.outputs["examples"],
+            schema=movies_schema_gen.outputs["schema"],
+            module_file=os.path.abspath(args["movies_transform_module"])
+        )
+
+        rating_transform = components.Transform(
+            examples=rating_example_gen.outputs["examples"],
+            schema=rating_schema_gen.outputs["schema"],
+            module_file=os.path.abspath(args["rating_transform_module"])
         )
 
         # tuner = components.Tuner(
@@ -65,9 +89,9 @@ def init_components(args: Dict[Text, Any]):
 
         trainer = components.Trainer(
             module_file=os.path.abspath(args["trainer_module"]),
-            examples=transform.outputs["transformed_examples"],
-            transform_graph=transform.outputs["transform_graph"],
-            schema=transform.outputs["post_transform_schema"],
+            examples=rating_transform.outputs["transformed_examples"],
+            transform_graph=rating_transform.outputs["transform_graph"],
+            schema=rating_transform.outputs["post_transform_schema"],
             # hyperparameters=tuner.outputs["best_hyperparameters"],
             train_args=trainer_pb2.TrainArgs(
                 splits=["train"],
@@ -79,6 +103,8 @@ def init_components(args: Dict[Text, Any]):
             ),
             custom_config={
                 "epochs": args["epochs"],
+                "movies": movies_transform.outputs["transformed_examples"],
+                "movies_schema": movies_transform.outputs["post_transform_schema"],
             }
         )
 
@@ -100,11 +126,16 @@ def init_components(args: Dict[Text, Any]):
         )
 
         return (
-            example_gen,
-            statistics_gen,
-            schema_gen,
-            example_validator,
-            transform,
+            movies_example_gen,
+            rating_example_gen,
+            movies_statistics_gen,
+            rating_statistics_gen,
+            movies_schema_gen,
+            rating_schema_gen,
+            movies_example_validator,
+            rating_example_validator,
+            movies_transform,
+            rating_transform,
             # tuner,
             trainer,
             model_resolver,

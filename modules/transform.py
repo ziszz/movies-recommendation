@@ -6,7 +6,6 @@ from absl import logging
 
 NUMERIC_FEATURE = "userId"
 CATEGORICAL_FEATURE = "title"
-LABEL_KEY = "rating"
 
 
 def transformed_name(key):
@@ -32,9 +31,6 @@ def preprocessing_fn(inputs):
             num_oov_buckets=1,
             vocab_filename=f"{CATEGORICAL_FEATURE}_vocab"
         )
-
-        outputs[transformed_name(LABEL_KEY)] = tf.cast(
-            inputs[LABEL_KEY], tf.int64)
         return outputs
     except BaseException as err:
         logging.error(f"ERROR IN _get_model:\n{err}")

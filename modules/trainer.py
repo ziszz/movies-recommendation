@@ -1,7 +1,6 @@
 import os
 from typing import Dict, Text
 
-import keras
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 import tensorflow_transform as tft
@@ -18,9 +17,9 @@ class RecommenderNet(tfrs.models.Model):
         embedding_dimension = 32
 
         self.user_model: tf.keras.layers.Layer = self._build_user_model(
-            tf_transform_output, embedding_dimension, 1e-3)
+            tf_transform_output, embedding_dimension)
         self.movie_model: tf.keras.layers.Layer = self._build_movie_model(
-            tf_transform_output, embedding_dimension, 1e-3)
+            tf_transform_output, embedding_dimension)
 
         self.retrieval_task: tf.keras.layers.Layer = tfrs.tasks.Retrieval(
             metrics=tfrs.metrics.FactorizedTopK(
@@ -28,7 +27,7 @@ class RecommenderNet(tfrs.models.Model):
             )
         )
 
-    def _build_user_model(self, tf_transform_output, embedding_dims, l2_regularizers):
+    def _build_user_model(self, tf_transform_output, embedding_dims):
         try:
             unique_user_ids = tf_transform_output.vocabulary_by_name(
                 f"{NUMERIC_FEATURE}_vocab")
@@ -38,18 +37,13 @@ class RecommenderNet(tfrs.models.Model):
                 tf.keras.layers.StringLookup(
                     vocabulary=users_vocab_str, mask_token=None),
                 tf.keras.layers.Embedding(
-                    len(users_vocab_str) + 1,
-                    embedding_dims,
-                    embeddings_initializer='he_normal',
-                    embeddings_regularizer=keras.regularizers.l2(
-                        l2_regularizers),
-                )
+                    len(users_vocab_str) + 1, embedding_dims)
             ])
         except BaseException as err:
             logging.error(
                 f"ERROR IN RecommenderNet::_build_user_model:\n{err}")
 
-    def _build_movie_model(self, tf_transform_output, embedding_dims, l2_regularizers):
+    def _build_movie_model(self, tf_transform_output, embedding_dims):
         try:
             unique_movie_ids = tf_transform_output.vocabulary_by_name(
                 f"{CATEGORICAL_FEATURE}_vocab")
@@ -59,12 +53,7 @@ class RecommenderNet(tfrs.models.Model):
                 tf.keras.layers.StringLookup(
                     vocabulary=movies_vocab_str, mask_token=None),
                 tf.keras.layers.Embedding(
-                    len(movies_vocab_str) + 1,
-                    embedding_dims,
-                    embeddings_initializer='he_normal',
-                    embeddings_regularizer=keras.regularizers.l2(
-                        l2_regularizers),
-                )
+                    len(movies_vocab_str) + 1, embedding_dims)
             ])
         except BaseException as err:
             logging.error(

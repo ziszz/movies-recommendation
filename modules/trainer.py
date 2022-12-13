@@ -224,6 +224,9 @@ def run_fn(fn_args):
             )
         )
 
+        # _, titles = index(tf.constant(["42"]))
+        # print(f"Recommendations for user 42: {titles[0, :3]}")
+
         signatures = {
             "serving_default": _get_serve_tf_examples_fn(
                 index, tf_transform_output,

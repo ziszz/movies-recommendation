@@ -23,15 +23,15 @@ def init_components(**kwargs):
 
         example_gen = components.CsvExampleGen(
             input_base=kwargs["data_dir"],
-            output_config=output
+            output_config=output,
         )
 
         statistics_gen = components.StatisticsGen(
-            examples=example_gen.outputs["examples"]
+            examples=example_gen.outputs["examples"],
         )
 
         schema_gen = components.SchemaGen(
-            statistics=statistics_gen.outputs["statistics"]
+            statistics=statistics_gen.outputs["statistics"],
         )
 
         example_validator = components.ExampleValidator(
@@ -42,7 +42,7 @@ def init_components(**kwargs):
         transform = components.Transform(
             examples=example_gen.outputs["examples"],
             schema=schema_gen.outputs["schema"],
-            module_file=os.path.abspath(kwargs["transform_module"])
+            module_file=os.path.abspath(kwargs["transform_module"]),
         )
 
         # tuner = components.Tuner(
@@ -50,11 +50,11 @@ def init_components(**kwargs):
         #     examples=transform.outputs["transformed_examples"],
         #     transform_graph=transform.outputs["transform_graph"],
         #     schema=transform.outputs["post_transform_schema"],
-        #     train_kwargs=trainer_pb2.Trainkwargs(
+        #     train_args=trainer_pb2.TrainArgs(
         #         splits=["train"],
         #         num_steps=kwargs["train_steps"],
         #     ),
-        #     eval_kwargs=trainer_pb2.Evalkwargs(
+        #     eval_wargs=trainer_pb2.EvalArgs(
         #         splits=["eval"],
         #         num_steps=kwargs["eval_steps"],
         #     ),
@@ -69,11 +69,11 @@ def init_components(**kwargs):
             transform_graph=transform.outputs["transform_graph"],
             schema=transform.outputs["post_transform_schema"],
             # hyperparameters=tuner.outputs["best_hyperparameters"],
-            train_kwargs=trainer_pb2.Trainkwargs(
+            train_args=trainer_pb2.TrainArgs(
                 splits=["train"],
                 num_steps=kwargs["train_steps"],
             ),
-            eval_kwargs=trainer_pb2.Evalkwargs(
+            eval_args=trainer_pb2.EvalArgs(
                 splits=["eval"],
                 num_steps=kwargs["eval_steps"],
             ),
@@ -90,7 +90,8 @@ def init_components(**kwargs):
             push_destination=pusher_pb2.PushDestination(
                 filesystem=pusher_pb2.PushDestination.Filesystem(
                     base_directory=os.path.join(
-                        kwargs["serving_model_dir"], "movie-recommender"
+                        kwargs["serving_model_dir"], 
+                        "movie-recommender",
                     ),
                 )
             )

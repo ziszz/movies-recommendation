@@ -7,10 +7,8 @@ import tensorflow_recommenders as tfrs
 import tensorflow_transform as tft
 from absl import logging
 from keras import layers
-from tfx.types import artifact_utils
-from tfx_bsl.coders import example_coder
 
-from modules.transform import FEATURE_KEYS, transformed_name
+from modules.transform import FEATURE_KEYS
 from modules.tuner import input_fn
 
 

@@ -1,4 +1,3 @@
-import glob
 import os
 
 import keras
@@ -51,7 +50,7 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         model.tft_layer = tf_transform_output.transform_features_layer()
 
         @tf.function(
-            tf.TensorSpec(shape=[None],dtype=tf.string, name="examples")
+            tf.TensorSpec(shape=[None], dtype=tf.string, name="examples")
         )
         def serve_tf_examples_fn(serialized_tf_examples):
             try:
@@ -92,6 +91,13 @@ def run_fn(fn_args):
     try:
         # hyperparameters = fn_args.hyperparameters["values"]
 
+        tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
+
+        train_dataset = input_fn(
+            fn_args.train_files, fn_args.data_accessor, tf_transform_output, batch_size=1)
+        eval_dataset = input_fn(
+            fn_args.eval_files, fn_args.data_accessor, tf_transform_output, batch_size=1)
+        
         unique_user_ids = tf_transform_output.vocabulary_by_name(
             f"{FEATURE_KEYS[0]}_vocab")
         users_vocab_str = [i.decode() for i in unique_user_ids]
@@ -99,13 +105,6 @@ def run_fn(fn_args):
         unique_movie_ids = tf_transform_output.vocabulary_by_name(
             f"{FEATURE_KEYS[0]}_vocab")
         movies_vocab_str = [i.decode() for i in unique_movie_ids]
-
-        tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
-
-        train_dataset = input_fn(
-            fn_args.train_files, fn_args.data_accessor, tf_transform_output, batch_size=1)
-        eval_dataset = input_fn(
-            fn_args.eval_files, fn_args.data_accessor, tf_transform_output, batch_size=1)
 
         model = _get_model(
             num_users=len(users_vocab_str),

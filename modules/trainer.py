@@ -125,11 +125,11 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         logging.error(f"ERROR IN _get_serve_tf_examples_fn:\n{err}")
 
 
-def _get_model(num_users, num_movies):
+def _get_model(unique_user_ids, unique_movie_ids):
     try:
         model = RecommenderNet(
-            num_users=num_users,
-            num_movies=num_movies,
+            unique_user_ids=unique_user_ids,
+            unique_movie_ids=unique_movie_ids,
         )
 
         model.compile(
@@ -163,8 +163,8 @@ def run_fn(fn_args):
         movies_vocab_str = [i.decode() for i in unique_movie_ids]
 
         model = _get_model(
-            num_users=len(users_vocab_str),
-            num_movies=len(movies_vocab_str),
+            unique_user_ids=users_vocab_str,
+            unique_movie_ids=movies_vocab_str,
         )
 
         log_dir = os.path.join(os.path.dirname(

@@ -7,35 +7,91 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 
-from modules.transform import FEATURE_KEYS
+from modules.transform import FEATURE_KEYS, transformed_name
 from modules.tuner import input_fn
 
 
 class RecommenderNet(tfrs.models.Model):
-    def __init__(self, num_users, num_movies, **kwargs) -> None:
+    def __init__(self, unique_user_ids, unique_movie_ids, **kwargs) -> None:
         super(RecommenderNet, self).__init__(**kwargs)
 
-        self.user_embeddings = layers.Embedding(
-            num_users,
+        self.user_embeddings = self._build_user_model(
+            unique_user_ids,
             128,
-            embedding_initializer="he_normal",
-            embedding_regularizer=keras.regularizers.l2(1e-3),
+            1e-3,
         )
-        self.user_bias = layers.Embedding(num_users, 1)
-        self.movie_embeddings = layers.Embedding(
-            num_movies,
+        self.movie_embeddings = self._build_movie_model(
+            unique_movie_ids,
             128,
-            embedding_initializer="he_normal",
-            embedding_regularizer=keras.regularizers.l2(1e-3),
+            1e-3,
         )
-        self.movie_bias = layers.Embedding(num_movies, 1)
+        self.user_bias = layers.Embedding(len(unique_user_ids), 1)
+        self.movie_bias = layers.Embedding(len(unique_movie_ids), 1)
+
+    def _build_user_model(self, unique_user_ids, embedding_dims, l2_regularizers):
+        try:
+            model = tf.keras.Sequential([
+                layers.Input(
+                    shape=(1,),
+                    name=transformed_name(FEATURE_KEYS[0]),
+                    dtype=tf.int64,
+                ),
+                layers.Lambda(lambda x: tf.as_string(x)),
+                layers.StringLookup(
+                    vocabulary=unique_user_ids,
+                    mask_token=None,
+                ),
+                layers.Embedding(
+                    len(unique_user_ids) + 1,
+                    embedding_dims,
+                    embeddings_initializer="he_normal",
+                    embeddings_regularizer=keras.regularizers.l2(
+                        l2_regularizers),
+                ),
+            ])
+
+            return model
+        except BaseException as err:
+            logging.error(
+                f"ERROR IN RecommenderNet::_build_user_model:\n{err}")
+
+    def _build_movie_model(self, unique_movie_ids, embedding_dims, l2_regularizers):
+        try:
+            model = tf.keras.Sequential([
+                layers.Input(
+                    shape=(1,),
+                    name=transformed_name(FEATURE_KEYS[1]),
+                    dtype=tf.int64,
+                ),
+                layers.Lambda(lambda x: tf.as_string(x)),
+                layers.StringLookup(
+                    vocabulary=unique_movie_ids,
+                    mask_token=None,
+                ),
+                layers.Embedding(
+                    len(unique_movie_ids) + 1,
+                    embedding_dims,
+                    embeddings_initializer="he_normal",
+                    embeddings_regularizer=keras.regularizers.l2(
+                        l2_regularizers),
+                ),
+            ])
+
+            return model
+        except BaseException as err:
+            logging.error(
+                f"ERROR IN RecommenderNet::_build_user_model:\n{err}")
 
     def call(self, inputs):
         try:
-            users_vector = self.user_embeddings(inputs[:, 0])
-            users_bias = self.user_bias(inputs[:, 0])
-            movies_vector = self.movie_embeddings(inputs[:, 1])
-            movies_bias = self.movie_bias(inputs[:, 0])
+            users_vector = self.user_embeddings(
+                inputs[transformed_name(FEATURE_KEYS[0])])
+            users_bias = self.user_bias(
+                inputs[transformed_name(FEATURE_KEYS[0])])
+            movies_vector = self.movie_embeddings(
+                inputs[transformed_name(FEATURE_KEYS[1])])
+            movies_bias = self.movie_bias(
+                inputs[transformed_name(FEATURE_KEYS[1])])
 
             dot_user_movies = tf.tensordot(users_vector, movies_vector, 2)
             x = dot_user_movies + users_bias + movies_bias
@@ -97,7 +153,7 @@ def run_fn(fn_args):
             fn_args.train_files, fn_args.data_accessor, tf_transform_output, batch_size=1)
         eval_dataset = input_fn(
             fn_args.eval_files, fn_args.data_accessor, tf_transform_output, batch_size=1)
-        
+
         unique_user_ids = tf_transform_output.vocabulary_by_name(
             f"{FEATURE_KEYS[0]}_vocab")
         users_vocab_str = [i.decode() for i in unique_user_ids]

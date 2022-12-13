@@ -1,5 +1,4 @@
 import os
-from typing import Any, Dict, Text
 
 from absl import logging
 from tfx import components
@@ -11,101 +10,73 @@ from tfx.types import Channel
 from tfx.types.standard_artifacts import Model, ModelBlessing
 
 
-def init_components(args: Dict[Text, Any]):
+def init_components(**kwargs):
     try:
         output = example_gen_pb2.Output(
             split_config=example_gen_pb2.SplitConfig(splits=[
                 example_gen_pb2.SplitConfig.Split(
                     name="train", hash_buckets=8),
-                example_gen_pb2.SplitConfig.Split(name="eval", hash_buckets=2),
+                example_gen_pb2.SplitConfig.Split(
+                    name="eval", hash_buckets=2),
             ])
         )
 
-        movies_example_gen = components.CsvExampleGen(
-            input_base=args["movies_data_dir"],
+        example_gen = components.CsvExampleGen(
+            input_base=kwargs["data_dir"],
             output_config=output
         )
 
-        rating_example_gen = components.CsvExampleGen(
-            input_base=args["rating_data_dir"],
-            output_config=output
+        statistics_gen = components.StatisticsGen(
+            examples=example_gen.outputs["examples"]
         )
 
-        movies_statistics_gen = components.StatisticsGen(
-            examples=movies_example_gen.outputs["examples"]
+        schema_gen = components.SchemaGen(
+            statistics=statistics_gen.outputs["statistics"]
         )
 
-        rating_statistics_gen = components.StatisticsGen(
-            examples=rating_example_gen.outputs["examples"]
+        example_validator = components.ExampleValidator(
+            statistics=statistics_gen.outputs["statistics"],
+            schema=schema_gen.outputs["schema"],
         )
 
-        movies_schema_gen = components.SchemaGen(
-            statistics=movies_statistics_gen.outputs["statistics"]
-        )
-
-        rating_schema_gen = components.SchemaGen(
-            statistics=rating_statistics_gen.outputs["statistics"]
-        )
-
-        movies_example_validator = components.ExampleValidator(
-            statistics=movies_statistics_gen.outputs["statistics"],
-            schema=movies_schema_gen.outputs["schema"],
-        )
-
-        rating_example_validator = components.ExampleValidator(
-            statistics=rating_statistics_gen.outputs["statistics"],
-            schema=rating_schema_gen.outputs["schema"],
-        )
-
-        movies_transform = components.Transform(
-            examples=movies_example_gen.outputs["examples"],
-            schema=movies_schema_gen.outputs["schema"],
-            module_file=os.path.abspath(args["movies_transform_module"])
-        )
-
-        rating_transform = components.Transform(
-            examples=rating_example_gen.outputs["examples"],
-            schema=rating_schema_gen.outputs["schema"],
-            module_file=os.path.abspath(args["rating_transform_module"])
+        transform = components.Transform(
+            examples=example_gen.outputs["examples"],
+            schema=schema_gen.outputs["schema"],
+            module_file=os.path.abspath(kwargs["transform_module"])
         )
 
         # tuner = components.Tuner(
-        #     module_file=os.path.abspath(args["tuner_module"]),
+        #     module_file=os.path.abspath(kwargs["tuner_module"]),
         #     examples=transform.outputs["transformed_examples"],
         #     transform_graph=transform.outputs["transform_graph"],
         #     schema=transform.outputs["post_transform_schema"],
-        #     train_args=trainer_pb2.TrainArgs(
+        #     train_kwargs=trainer_pb2.Trainkwargs(
         #         splits=["train"],
-        #         num_steps=args["train_steps"],
+        #         num_steps=kwargs["train_steps"],
         #     ),
-        #     eval_args=trainer_pb2.EvalArgs(
+        #     eval_kwargs=trainer_pb2.Evalkwargs(
         #         splits=["eval"],
-        #         num_steps=args["eval_steps"],
+        #         num_steps=kwargs["eval_steps"],
         #     ),
         #     custom_config={
-        #         "epochs": args["epochs"],
+        #         "epochs": kwargs["epochs"],
         #     }
         # )
 
         trainer = components.Trainer(
-            module_file=os.path.abspath(args["trainer_module"]),
-            examples=rating_transform.outputs["transformed_examples"],
-            transform_graph=rating_transform.outputs["transform_graph"],
-            schema=rating_transform.outputs["post_transform_schema"],
+            module_file=os.path.abspath(kwargs["trainer_module"]),
+            examples=transform.outputs["transformed_examples"],
+            transform_graph=transform.outputs["transform_graph"],
+            schema=transform.outputs["post_transform_schema"],
             # hyperparameters=tuner.outputs["best_hyperparameters"],
-            train_args=trainer_pb2.TrainArgs(
+            train_kwargs=trainer_pb2.Trainkwargs(
                 splits=["train"],
-                num_steps=args["train_steps"],
+                num_steps=kwargs["train_steps"],
             ),
-            eval_args=trainer_pb2.EvalArgs(
+            eval_kwargs=trainer_pb2.Evalkwargs(
                 splits=["eval"],
-                num_steps=args["eval_steps"],
+                num_steps=kwargs["eval_steps"],
             ),
-            custom_config={
-                "epochs": args["epochs"],
-                "movies": movies_transform.outputs["transformed_examples"],
-                "movies_schema": movies_transform.outputs["post_transform_schema"],
-            }
         )
 
         model_resolver = Resolver(
@@ -119,23 +90,18 @@ def init_components(args: Dict[Text, Any]):
             push_destination=pusher_pb2.PushDestination(
                 filesystem=pusher_pb2.PushDestination.Filesystem(
                     base_directory=os.path.join(
-                        args["serving_model_dir"], "movie-recommender"
+                        kwargs["serving_model_dir"], "movie-recommender"
                     ),
                 )
             )
         )
 
         return (
-            movies_example_gen,
-            rating_example_gen,
-            movies_statistics_gen,
-            rating_statistics_gen,
-            movies_schema_gen,
-            rating_schema_gen,
-            movies_example_validator,
-            rating_example_validator,
-            movies_transform,
-            rating_transform,
+            example_gen,
+            statistics_gen,
+            schema_gen,
+            example_validator,
+            transform,
             # tuner,
             trainer,
             model_resolver,

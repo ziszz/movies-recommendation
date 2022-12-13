@@ -135,7 +135,7 @@ def _get_model(unique_user_ids, unique_movie_ids):
         model.compile(
             loss=tf.keras.losses.BinaryCrossentropy(),
             optimizer=tf.keras.optimizers.Adam(),
-            metrics=[tf.keras.metrics.RootMeanSquarredError()]
+            metrics=[tf.keras.metrics.RootMeanSquaredError()]
         )
 
         return model

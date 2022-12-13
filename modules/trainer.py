@@ -24,31 +24,19 @@ class RecommenderNet(tfrs.models.Model):
         input_dir = artifact_utils.get_split_uri([movies_artifact], "train")
         movie_files = glob.glob(os.path.join(input_dir, "*"))
         movies = tf.data.TFRecordDataset(movie_files, compression_type="GZIP")
-        movies_ds = self._extract_str_feature(
+        movies_ds = _extract_str_feature(
             movies, transformed_name(CATEGORICAL_FEATURE))
 
-        self.user_model: tf.keras.Model = self._build_user_model(
+        self.user_model: keras.Model = self._build_user_model(
             tf_transform_output, embedding_dimension, 1e-3)
-        self.movie_model: tf.keras.Model = self._build_movie_model(
+        self.movie_model: keras.Model = self._build_movie_model(
             tf_transform_output, embedding_dimension, 1e-3)
 
-        self.retrieval_task: tf.keras.layers.Layer = tfrs.tasks.Retrieval(
+        self.retrieval_task: keras.layers.Layer = tfrs.tasks.Retrieval(
             metrics=tfrs.metrics.FactorizedTopK(
                 candidates=movies_ds.batch(128).map(self.movie_model)
             )
         )
-
-    def _extract_str_feature(self, dataset, feature_name):
-        try:
-            np_dataset = []
-
-            for example in dataset:
-                np_example = example_coder.ExampleToNumpyDict(example.numpy())
-                np_dataset.append(np_example[feature_name][0].decode())
-            return tf.data.Dataset.from_tensor_slices(np_dataset)
-        except BaseException as err:
-            logging.error(
-                f"ERROR IN RecommenderNet::_extract_str_feature:\n{err}")
 
     def _build_user_model(self, tf_transform_output, embedding_dims, l2_regularizers):
         try:
@@ -56,11 +44,12 @@ class RecommenderNet(tfrs.models.Model):
                 f"{NUMERIC_FEATURE}_vocab")
             users_vocab_str = [b.decode() for b in unique_user_ids]
 
-            return tf.keras.Sequential([
-                tf.keras.layers.Lambda(lambda x: tf.as_string(x)),
-                tf.keras.layers.StringLookup(
-                    vocabulary=users_vocab_str, mask_token=None),
-                tf.keras.layers.Embedding(
+            return keras.Sequential([
+                keras.layers.StringLookup(
+                    vocabulary=users_vocab_str,
+                    mask_token=None,
+                ),
+                keras.layers.Embedding(
                     len(users_vocab_str) + 1,
                     embedding_dims,
                     embeddings_initializer='he_normal',
@@ -78,10 +67,12 @@ class RecommenderNet(tfrs.models.Model):
                 f"{CATEGORICAL_FEATURE}_vocab")
             movies_vocab_str = [b.decode() for b in unique_movie_titles]
 
-            return tf.keras.Sequential([
-                tf.keras.layers.StringLookup(
-                    vocabulary=movies_vocab_str, mask_token=None),
-                tf.keras.layers.Embedding(
+            return keras.Sequential([
+                keras.layers.StringLookup(
+                    vocabulary=movies_vocab_str,
+                    mask_token=None,
+                ),
+                keras.layers.Embedding(
                     len(movies_vocab_str) + 1,
                     embedding_dims,
                     embeddings_initializer='he_normal',
@@ -105,22 +96,32 @@ class RecommenderNet(tfrs.models.Model):
             logging.error(f"ERROR IN RecommenderNet::compute_loss:\n{err}")
 
 
+def _extract_str_feature(dataset, feature_name):
+    try:
+        np_dataset = []
+
+        for example in dataset:
+            np_example = example_coder.ExampleToNumpyDict(example.numpy())
+            np_dataset.append(np_example[feature_name][0].decode())
+        return tf.data.Dataset.from_tensor_slices(np_dataset)
+    except BaseException as err:
+        logging.error(
+            f"ERROR IN RecommenderNet::_extract_str_feature:\n{err}")
+
+
 def _get_serve_tf_examples_fn(model, tf_transform_output):
     try:
         model.tft_layer = tf_transform_output.transform_features_layer()
 
-        @tf.function(input_signature=[
-            tf.TensorSpec(shape=[None], dtype=tf.string, name="examples"),
-        ])
+        @tf.function
         def serve_tf_examples_fn(serialized_tf_examples):
             try:
                 feature_spec = tf_transform_output.raw_feature_spec()
                 parsed_features = tf.io.parse_example(
                     serialized_tf_examples, feature_spec)
                 transformed_features = model.tft_layer(parsed_features)
-                result = model(transformed_features)
 
-                return result
+                return model(transformed_features)
             except BaseException as err:
                 logging.error(f"ERROR IN serve_tf_examples_fn:\n{err}")
 
@@ -138,7 +139,7 @@ def _get_model(tf_transform_output, movies_data):
         )
 
         model.compile(
-            optimizer=tf.keras.optimizers.Adagrad(learning_rate=0.1))
+            optimizer=keras.optimizers.Adagrad(learning_rate=0.1))
 
         return model
     except BaseException as err:
@@ -164,16 +165,16 @@ def run_fn(fn_args):
             movies_data=fn_args.custom_config["movies"],
         )
 
-        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
+        tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir)
 
-        # early_stop_callbacks = tf.keras.callbacks.EarlyStopping(
+        # early_stop_callbacks = keras.callbacks.EarlyStopping(
         #     monitor="val_root_mean_squared_error",
         #     mode="min",
         #     verbose=1,
         #     patience=10,
         # )
 
-        # model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+        # model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
         #     fn_args.serving_model_dir,
         #     monitor="val_root_mean_squared_error",
         #     mode="min",
@@ -203,13 +204,37 @@ def run_fn(fn_args):
     try:
         index = tfrs.layers.factorized_top_k.BruteForce(model.user_model)
 
+        movies_artifact = fn_args.custom_config['movies'].get()[0]
+        input_dir = artifact_utils.get_split_uri([movies_artifact], 'eval')
+        movie_files = glob.glob(os.path.join(input_dir, '*'))
+        movies = tf.data.TFRecordDataset(movie_files, compression_type="GZIP")
+
+        movies_ds = _extract_str_feature(
+            movies, transformed_name(CATEGORICAL_FEATURE))
+
+        index.index_from_dataset(
+            tf.data.Dataset.zip((
+                movies_ds.batch(100),
+                movies_ds.batch(100).map(model.movie_model))
+            )
+        )
+
+        _, titles = index(tf.constant(["42"]))
+        print(f"Recommendations for user 42: {titles[0, :3]}")
+
         signatures = {
             "serving_default": _get_serve_tf_examples_fn(
                 index, tf_transform_output,
+            ).get_concrete_function(
+                tf.TensorSpec(
+                    shape=[None],
+                    dtype=tf.string,
+                    name="examples",
+                )
             )
         }
 
-        model.save(
+        index.save(
             fn_args.serving_model_dir,
             save_format="tf",
             signatures=signatures,

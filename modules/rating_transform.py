@@ -12,8 +12,7 @@ def preprocessing_fn(inputs):
     try:
         outputs = {}
 
-        outputs[transformed_name(NUMERIC_FEATURE)] = tf.cast(
-            inputs[NUMERIC_FEATURE], tf.int64)
+        outputs[transformed_name(NUMERIC_FEATURE)] = inputs[NUMERIC_FEATURE]
         outputs[transformed_name(CATEGORICAL_FEATURE)] = tf.strings.lower(
             inputs[CATEGORICAL_FEATURE])
 

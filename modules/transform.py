@@ -24,7 +24,7 @@ def preprocessing_fn(inputs):
             outputs[transformed_name(key)] = tf.cast(inputs[key], tf.int64)
             tft.compute_and_apply_vocabulary(
                 inputs[key],
-                num_oov_bucket=NUM_OF_BUCKETS,
+                num_oov_buckets=NUM_OF_BUCKETS,
                 vocab_filename=f"{key}_vocab"
             )
 

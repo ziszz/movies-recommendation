@@ -48,6 +48,7 @@ class RecommenderNet(tfrs.models.Model):
                 keras.layers.Input(
                     shape=(1,),
                     name=transformed_name(NUMERIC_FEATURE),
+                    dtype=tf.string,
                 ),
                 keras.layers.StringLookup(
                     vocabulary=users_vocab_str,
@@ -222,9 +223,6 @@ def run_fn(fn_args):
                 movies_ds.batch(100).map(model.movie_model))
             )
         )
-
-        _, titles = index(tf.constant(["42"]))
-        print(f"Recommendations for user 42: {titles[0, :3]}")
 
         signatures = {
             "serving_default": _get_serve_tf_examples_fn(

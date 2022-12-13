@@ -45,6 +45,10 @@ class RecommenderNet(tfrs.models.Model):
             users_vocab_str = [b.decode() for b in unique_user_ids]
 
             return keras.Sequential([
+                keras.layers.Input(
+                    shape=(1,),
+                    name=transformed_name(NUMERIC_FEATURE),
+                ),
                 keras.layers.StringLookup(
                     vocabulary=users_vocab_str,
                     mask_token=None,

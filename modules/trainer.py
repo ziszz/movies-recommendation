@@ -11,7 +11,7 @@ from modules.transform import FEATURE_KEYS, transformed_name
 from modules.tuner import input_fn
 
 
-class RecommenderNet(tfrs.models.Model):
+class RecommenderNet(tf.keras.Model):
     def __init__(self, unique_user_ids, unique_movie_ids, **kwargs) -> None:
         super(RecommenderNet, self).__init__(**kwargs)
 
@@ -198,7 +198,7 @@ def run_fn(fn_args):
     try:
         model.fit(
             train_dataset,
-            epochs=fn_args.custom_config["epochs"],
+            epochs=5,
             steps_per_epoch=fn_args.train_steps,
             validation_data=eval_dataset,
             validation_steps=fn_args.eval_steps,

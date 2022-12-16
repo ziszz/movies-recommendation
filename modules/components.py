@@ -77,6 +77,10 @@ def init_components(**kwargs):
                 splits=["eval"],
                 num_steps=kwargs["eval_steps"],
             ),
+            custom_config={
+                "movies": transform.outputs["transformed_examples"],
+                "movies_schema": transform.outputs["post_transform_schema"],
+            }
         )
 
         model_resolver = Resolver(
@@ -90,7 +94,7 @@ def init_components(**kwargs):
             push_destination=pusher_pb2.PushDestination(
                 filesystem=pusher_pb2.PushDestination.Filesystem(
                     base_directory=os.path.join(
-                        kwargs["serving_model_dir"], 
+                        kwargs["serving_model_dir"],
                         "movie-recommender",
                     ),
                 )

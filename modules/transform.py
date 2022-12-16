@@ -4,36 +4,31 @@ from absl import logging
 
 NUM_OF_BUCKETS = 1
 
-NUMERICAL_FEATURE = "userId"
-CATEGORICAL_FEATURE = "title"
+FEATURE_KEYS = [
+    "userId",
+    "movieId",
+]
+
 LABEL_KEY = "rating"
 
 
 def transformed_name(key):
-    key = key.lower()
-    return f"{key}_xf"
+    return f"{key.lower()}_xf"
 
 
 def preprocessing_fn(inputs):
     try:
         outputs = {}
 
-        outputs[transformed_name(NUMERICAL_FEATURE)] = tf.cast(inputs[NUMERICAL_FEATURE], tf.int64)
-        outputs[transformed_name(CATEGORICAL_FEATURE)] = tf.strings.lower(inputs[CATEGORICAL_FEATURE])
-
-        tft.compute_and_apply_vocabulary(
-            inputs[NUMERICAL_FEATURE],
-            num_oov_buckets=NUM_OF_BUCKETS,
-            vocab_filename=f"{NUMERICAL_FEATURE}_vocab"
-        )
-        tft.compute_and_apply_vocabulary(
-            inputs[CATEGORICAL_FEATURE],
-            num_oov_buckets=NUM_OF_BUCKETS,
-            vocab_filename=f"{CATEGORICAL_FEATURE}_vocab"
-        )
-
-        outputs[transformed_name(LABEL_KEY)] = tf.cast(
-            inputs[LABEL_KEY], tf.int64)
+        for key in FEATURE_KEYS:
+            outputs[transformed_name(key)] = tf.cast(inputs[key], tf.int64)
+            tft.compute_and_apply_vocabulary(
+                inputs[key],
+                num_oov_buckets=NUM_OF_BUCKETS,
+                vocab_filename=f"{key}_vocab"
+            )
+            
+        outputs[transformed_name(LABEL_KEY)] = tf.cast(inputs[LABEL_KEY], tf.int64)
 
         return outputs
     except BaseException as err:

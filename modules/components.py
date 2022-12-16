@@ -108,18 +108,6 @@ def init_components(**kwargs):
                             ),
                         ),
                     ),
-                    tfma.MetricConfig(
-                        class_name="RootMeanSquaredError",
-                        threshold=tfma.MetricThreshold(
-                            value_threshold=tfma.GenericValueThreshold(
-                                lower_bound={"value": 0.1},
-                            ),
-                            change_threshold=tfma.GenericChangeThreshold(
-                                direction=tfma.MetricDirection.LOWER_IS_BETTER,
-                                absolute={"value": 1.0},
-                            ),
-                        ),
-                    ),
                 ])
             ]
         )

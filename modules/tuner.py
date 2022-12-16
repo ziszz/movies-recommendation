@@ -14,7 +14,7 @@ from modules.utils import input_fn
 
 TunerFnResult = NamedTuple("TunerFnResult", [
     ("tuner", base_tuner.BaseTuner),
-    ("val_loss", Dict[Text, Any])
+    ("fit_kwargs", Dict[Text, Any])
 ])
 
 early_stop = tf.keras.callbacks.EarlyStopping(

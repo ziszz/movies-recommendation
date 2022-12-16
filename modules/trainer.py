@@ -40,7 +40,7 @@ class CFModel(tfrs.Model):
                     FEATURE_KEYS[0]), dtype=tf.int64),
                 layers.Lambda(lambda x: tf.as_string(x)),
                 layers.StringLookup(
-                    vocabulary=unique_user_ids, mask_token=None),
+                    vocabulary=users_vocab_str, mask_token=None),
                 layers.Embedding(
                     len(users_vocab_str) + 1,
                     embedding_dims,
@@ -65,7 +65,7 @@ class CFModel(tfrs.Model):
                     FEATURE_KEYS[1]), dtype=tf.int64),
                 layers.Lambda(lambda x: tf.as_string(x)),
                 layers.StringLookup(
-                    vocabulary=unique_movie_ids, mask_token=None),
+                    vocabulary=movies_vocab_str, mask_token=None),
                 layers.Embedding(
                     len(movies_vocab_str) + 1,
                     embedding_dims,

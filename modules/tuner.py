@@ -149,7 +149,6 @@ def input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
             file_pattern,
             tfxio.TensorFlowDatasetOptions(
                 batch_size=batch_size,
-                label_key=transformed_name(LABEL_KEY),
             ),
             schema=tf_transform_output.transformed_metadata.schema
         ).repeat()

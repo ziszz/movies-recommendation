@@ -54,7 +54,7 @@ def init_components(**kwargs):
                 splits=["train"],
                 num_steps=kwargs["train_steps"],
             ),
-            eval_wargs=trainer_pb2.EvalArgs(
+            eval_args=trainer_pb2.EvalArgs(
                 splits=["eval"],
                 num_steps=kwargs["eval_steps"],
             ),

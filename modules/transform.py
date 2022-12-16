@@ -13,6 +13,7 @@ LABEL_KEY = "rating"
 
 
 def transformed_name(key):
+    key = tf.strings.lower(key)
     return f"{key}_xf"
 
 
@@ -22,6 +23,11 @@ def preprocessing_fn(inputs):
 
         for key in FEATURE_KEYS:
             outputs[transformed_name(key)] = tf.cast(inputs[key], tf.int64)
+            tft.compute_and_apply_vocabulary(
+                inputs[key],
+                num_oov_buckets=NUM_OF_BUCKETS,
+                vocab_filename=f"{key}_vocab"
+            )
 
         outputs[transformed_name(LABEL_KEY)] = tf.cast(
             inputs[LABEL_KEY], tf.int64)

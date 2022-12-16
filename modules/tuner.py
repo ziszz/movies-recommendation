@@ -14,7 +14,7 @@ from modules.utils import input_fn
 
 TunerFnResult = NamedTuple("TunerFnResult", [
     ("tuner", base_tuner.BaseTuner),
-    ("fit_kwargs", Dict[Text, Any])
+    ("val_loss", Dict[Text, Any])
 ])
 
 early_stop = tf.keras.callbacks.EarlyStopping(
@@ -172,10 +172,16 @@ def tuner_fn(fn_args):
                 hyperparameters=hp,
                 tf_transform_output=tf_transform_output,
             ),
-            objective=kt.Objective(
-                "val_root_mean_squared_error",
-                direction="min",
-            ),
+            objective=[
+                kt.Objective(
+                    "val_loss",
+                    direction="min",
+                ),
+                kt.Objective(
+                    "val_root_mean_squared_error",
+                    direction="min",
+                ),
+            ],
             max_epochs=fn_args.custom_config["epochs"],
             factor=3,
             directory=fn_args.working_dir,

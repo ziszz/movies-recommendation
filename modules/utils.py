@@ -4,7 +4,7 @@ import pandas as pd
 import tensorflow as tf
 from absl import logging
 
-from modules.transform import transformed_name
+from modules.transform import LABEL_KEY, transformed_name
 
 
 def merge_dataset(data1_path: str, data2_path: str):
@@ -41,6 +41,7 @@ def input_fn(file_pattern, tf_transform_output, batch_size=64):
             batch_size=batch_size,
             features=transform_feature_spec,
             reader=_gzip_reader_fn,
+            label_key=transformed_name(LABEL_KEY),
         )
 
         return dataset

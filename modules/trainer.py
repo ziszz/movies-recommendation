@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Text
+from typing import Dict, Text, Tuple
 
 import keras
 import tensorflow as tf
@@ -8,21 +8,26 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 
-from modules.transform import FEATURE_KEYS, LABEL_KEY
+from modules.transform import FEATURE_KEYS
 from modules.utils import input_fn, transformed_name
 
 
 class CFModel(tfrs.Model):
-    def __init__(self, tf_transform_output):
+    def __init__(self, hyperparameters, tf_transform_output):
         super().__init__()
-        self.embedding_dims = 128
-        self.l2_regularizers = 1e-3
+        
+        embedding_dims = hyperparameters["embedding_dims"]
+        l2_regularizers = hyperparameters["l2_regularizers"]
+        num_hidden_layers = hyperparameters["num_hidden_layers"]
+        dense_unit = hyperparameters["dense_unit"]
+        dropout_rate = hyperparameters["dropout_rate"]
 
         self.user_model = self._build_user_model(
-            tf_transform_output, self.embedding_dims, self.l2_regularizers)
+            tf_transform_output, embedding_dims, l2_regularizers)
         self.movie_model = self._build_movie_model(
-            tf_transform_output, self.embedding_dims, self.l2_regularizers)
-        self.rating_model = self._build_rating_model(2, 128, .5)
+            tf_transform_output, embedding_dims, l2_regularizers)
+        self.rating_model = self._build_rating_model(
+            num_hidden_layers, dense_unit, dropout_rate)
 
         self.task = tfrs.tasks.Ranking(
             loss=keras.losses.MeanSquaredError(),
@@ -81,11 +86,16 @@ class CFModel(tfrs.Model):
 
     def _build_rating_model(self, num_hidden_layers, dense_unit, dropout_rate):
         try:
-            model = keras.Sequential([
-                layers.Dense(dense_unit, activation=tf.nn.relu),
-                layers.Dropout(dropout_rate),
-                layers.Dense(1),
-            ])
+            flc_layers = []
+
+            for _ in range(num_hidden_layers):
+                flc_layers.append(layers.Dense(
+                    dense_unit, activation=tf.nn.relu))
+                flc_layers.append(layers.Dropout(dropout_rate))
+
+            flc_layers.append(layers.Dense(1))
+
+            model = keras.Sequential(flc_layers)
 
             return model
         except BaseException as err:
@@ -103,10 +113,10 @@ class CFModel(tfrs.Model):
         except BaseException as err:
             logging.error(f"ERROR IN CFModel::call:\n{err}")
 
-    def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
+    def compute_loss(self, features: Tuple, training=False):
         try:
-            labels = features.pop(transformed_name(LABEL_KEY))
-            rating_predictions = self(features)
+            labels = features[1]
+            rating_predictions = self(features[0])
 
             return self.task(labels=labels, predictions=rating_predictions)
         except BaseException as err:
@@ -136,10 +146,12 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         logging.error(f"ERROR IN _get_serve_tf_examples_fn:\n{err}")
 
 
-def _get_model(tf_transform_output):
+def _get_model(hyperparameters, tf_transform_output):
     try:
-        model = CFModel(tf_transform_output)
-        model.compile(optimizer=keras.optimizers.Adagrad(learning_rate=0.1))
+        learning_rate = hyperparameters["learning_rate"]
+        
+        model = CFModel(hyperparameters, tf_transform_output)
+        model.compile(optimizer=keras.optimizers.Adagrad(learning_rate=learning_rate))
 
         return model
     except BaseException as err:
@@ -148,7 +160,7 @@ def _get_model(tf_transform_output):
 
 def run_fn(fn_args):
     try:
-        # hyperparameters = fn_args.hyperparameters["values"]
+        hyperparameters = fn_args.hyperparameters["values"]
 
         tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
 
@@ -157,7 +169,7 @@ def run_fn(fn_args):
         eval_dataset = input_fn(
             fn_args.eval_files, tf_transform_output, batch_size=128)
 
-        model = _get_model(tf_transform_output)
+        model = _get_model(hyperparameters, tf_transform_output)
 
         log_dir = os.path.join(os.path.dirname(
             fn_args.serving_model_dir), "logs")
@@ -190,7 +202,7 @@ def run_fn(fn_args):
     try:
         model.fit(
             train_dataset,
-            epochs=5,
+            epochs=hyperparameters["tuner/epochs"],
             steps_per_epoch=fn_args.train_steps,
             validation_data=eval_dataset,
             validation_steps=fn_args.eval_steps,

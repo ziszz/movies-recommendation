@@ -4,11 +4,7 @@ import pandas as pd
 import tensorflow as tf
 from absl import logging
 
-from modules.transform import LABEL_KEY
-
-
-def transformed_name(key):
-    return f"{key.lower()}_xf"
+from modules.transform import transformed_name
 
 
 def merge_dataset(data1_path: str, data2_path: str):
@@ -34,7 +30,7 @@ def _gzip_reader_fn(filenames):
     except BaseException as err:
         logging.error(f"ERROR IN _gzip_reader_fn:\n{err}")
 
-def input_fn(file_pattern, tf_transform_output, batch_size=1):
+def input_fn(file_pattern, tf_transform_output, batch_size=64):
     try:
         transform_feature_spec = (
             tf_transform_output.transformed_feature_spec().copy()
@@ -45,7 +41,6 @@ def input_fn(file_pattern, tf_transform_output, batch_size=1):
             batch_size=batch_size,
             features=transform_feature_spec,
             reader=_gzip_reader_fn,
-            label_key=transformed_name(LABEL_KEY)
         )
 
         return dataset

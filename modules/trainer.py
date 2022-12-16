@@ -8,7 +8,7 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 
-from modules.transform import FEATURE_KEYS
+from modules.transform import FEATURE_KEYS, LABEL_KEY
 from modules.utils import input_fn, transformed_name
 
 
@@ -81,22 +81,17 @@ class CFModel(tfrs.Model):
 
     def _build_rating_model(self, num_hidden_layers, dense_unit, dropout_rate):
         try:
-            rating_layers = []
-
-            for _ in range(num_hidden_layers):
-                rating_layers.append(layers.Dense(
-                    dense_unit, activation=tf.nn.relu))
-                rating_layers.append(layers.Dropout(dropout_rate))
-
-            rating_layers.append(layers.Dense(1))
-
-            model = keras.Sequential(rating_layers)
+            model = keras.Sequential([
+                layers.Dense(dense_unit, activation=tf.nn.relu),
+                layers.Dropout(dropout_rate),
+                layers.Dense(1),
+            ])
 
             return model
         except BaseException as err:
             logging.error(f"ERROR IN CFModel::_build_rating_model:\n{err}")
 
-    def call(self, features: Dict[str, tf.Tensor]):
+    def call(self, features: Dict[Text, tf.Tensor]):
         try:
             user_embedding = self.user_model(
                 features[transformed_name(FEATURE_KEYS[0])])
@@ -110,8 +105,8 @@ class CFModel(tfrs.Model):
 
     def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
         try:
-            labels = features[1]
-            rating_predictions = self(features[0])
+            labels = features.pop([transformed_name(LABEL_KEY)])
+            rating_predictions = self(features)
 
             return self.task(labels=labels, predictions=rating_predictions)
         except BaseException as err:
@@ -144,7 +139,7 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
 def _get_model(tf_transform_output):
     try:
         model = CFModel(tf_transform_output)
-        model.compile(optimizer=keras.optimizers.Adam())
+        model.compile(optimizer=keras.optimizers.Adagrad(learning_rate=0.1))
 
         return model
     except BaseException as err:
@@ -158,17 +153,9 @@ def run_fn(fn_args):
         tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
 
         train_dataset = input_fn(
-            fn_args.train_files, tf_transform_output)
+            fn_args.train_files, tf_transform_output, batch_size=128)
         eval_dataset = input_fn(
-            fn_args.eval_files, tf_transform_output)
-
-        unique_user_ids = tf_transform_output.vocabulary_by_name(
-            f"{FEATURE_KEYS[0]}_vocab")
-        users_vocab_str = [i.decode() for i in unique_user_ids]
-
-        unique_movie_ids = tf_transform_output.vocabulary_by_name(
-            f"{FEATURE_KEYS[1]}_vocab")
-        movies_vocab_str = [i.decode() for i in unique_movie_ids]
+            fn_args.eval_files, tf_transform_output, batch_size=128)
 
         model = _get_model(tf_transform_output)
 
@@ -218,7 +205,7 @@ def run_fn(fn_args):
             "serving_default": _get_serve_tf_examples_fn(
                 model, tf_transform_output,
             ).get_concrete_function(
-                tf.TensorSpec(shape=[None], dtype=tf.string, name="examples")
+                tf.TensorSpec(shape=(None,), dtype=tf.string, name="examples")
             )
         }
 

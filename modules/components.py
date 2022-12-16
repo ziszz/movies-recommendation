@@ -77,6 +77,9 @@ def init_components(**kwargs):
                 splits=["eval"],
                 num_steps=kwargs["eval_steps"],
             ),
+            custom_config={
+                "epochs": kwargs["epochs"],
+            }
         )
 
         model_resolver = Resolver(

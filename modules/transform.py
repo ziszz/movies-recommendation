@@ -28,6 +28,9 @@ def preprocessing_fn(inputs):
                 vocab_filename=f"{key}_vocab"
             )
 
+        outputs[transformed_name(LABEL_KEY)] = tf.cast(
+            inputs[LABEL_KEY], tf.int64)
+
         return outputs
     except BaseException as err:
         logging.error(f"ERROR IN preprocessing_fn:\n{err}")

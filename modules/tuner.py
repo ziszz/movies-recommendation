@@ -14,7 +14,7 @@ from tfx.types import artifact_utils
 from tfx_bsl.coders import example_coder
 from tfx_bsl.public import tfxio
 
-from modules.transform import FEATURE_KEYS
+from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
 
 TunerFnResult = NamedTuple("TunerFnResult", [
     ("tuner", base_tuner.BaseTuner),
@@ -149,6 +149,7 @@ def input_fn(file_pattern, data_accessor, tf_transform_output, batch_size=64):
             file_pattern,
             tfxio.TensorFlowDatasetOptions(
                 batch_size=batch_size,
+                label_key=transformed_name(LABEL_KEY),
             ),
             schema=tf_transform_output.transformed_metadata.schema
         ).repeat()

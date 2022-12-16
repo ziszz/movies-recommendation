@@ -2,7 +2,6 @@ import os
 
 import keras
 import tensorflow as tf
-import tensorflow_recommenders as tfrs
 import tensorflow_transform as tft
 from absl import logging
 from keras import layers
@@ -36,11 +35,6 @@ class RecommenderNet(tf.keras.Model):
                     name=transformed_name(FEATURE_KEYS[0]),
                     dtype=tf.int64,
                 ),
-                layers.Lambda(lambda x: tf.as_string(x)),
-                layers.StringLookup(
-                    vocabulary=unique_user_ids,
-                    mask_token=None,
-                ),
                 layers.Embedding(
                     len(unique_user_ids) + 1,
                     embedding_dims,
@@ -62,11 +56,6 @@ class RecommenderNet(tf.keras.Model):
                     shape=(1,),
                     name=transformed_name(FEATURE_KEYS[1]),
                     dtype=tf.int64,
-                ),
-                layers.Lambda(lambda x: tf.as_string(x)),
-                layers.StringLookup(
-                    vocabulary=unique_movie_ids,
-                    mask_token=None,
                 ),
                 layers.Embedding(
                     len(unique_movie_ids) + 1,

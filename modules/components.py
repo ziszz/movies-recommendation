@@ -1,5 +1,6 @@
 import os
 
+import tensorflow_model_analysis as tfma
 from absl import logging
 from tfx import components
 from tfx.dsl.components.common.resolver import Resolver
@@ -8,6 +9,8 @@ from tfx.dsl.input_resolution.strategies.latest_blessed_model_strategy import \
 from tfx.proto import example_gen_pb2, pusher_pb2, trainer_pb2
 from tfx.types import Channel
 from tfx.types.standard_artifacts import Model, ModelBlessing
+
+from modules.transform import LABEL_KEY
 
 
 def init_components(**kwargs):
@@ -85,6 +88,49 @@ def init_components(**kwargs):
             model_blessing=Channel(type=ModelBlessing),
         ).with_id("Latest_blessed_model_resolve")
 
+        eval_config = tfma.EvalConfig(
+            model_specs=[
+                tfma.ModelSpec(label_key=LABEL_KEY),
+                tfma.ModelSpec(signature_name="serving_default"),
+            ],
+            slicing_specs=[tfma.SlicingSpec()],
+            metrics_specs=[
+                tfma.MetricsSpec(metrics=[
+                    tfma.MetricConfig(
+                        class_name="MeanSquaredError",
+                        threshold=tfma.MetricThreshold(
+                            value_threshold=tfma.GenericValueThreshold(
+                                lower_bound={"value": 0.1},
+                            ),
+                            change_threshold=tfma.GenericChangeThreshold(
+                                direction=tfma.MetricDirection.LOWER_IS_BETTER,
+                                absolute={"value": 1.0},
+                            ),
+                        ),
+                    ),
+                    tfma.MetricConfig(
+                        class_name="RootMeanSquaredError",
+                        threshold=tfma.MetricThreshold(
+                            value_threshold=tfma.GenericValueThreshold(
+                                lower_bound={"value": 0.1},
+                            ),
+                            change_threshold=tfma.GenericChangeThreshold(
+                                direction=tfma.MetricDirection.LOWER_IS_BETTER,
+                                absolute={"value": 1.0},
+                            ),
+                        ),
+                    ),
+                ])
+            ]
+        )
+
+        evaluator = components.Evaluator(
+            examples=example_gen.outputs["examples"],
+            model=trainer.outputs["model"],
+            baseline_model=model_resolver.outputs["model"],
+            eval_config=eval_config,
+        )
+
         pusher = components.Pusher(
             model=trainer.outputs["model"],
             push_destination=pusher_pb2.PushDestination(
@@ -106,6 +152,7 @@ def init_components(**kwargs):
             tuner,
             trainer,
             model_resolver,
+            evaluator,
             pusher,
         )
     except BaseException as err:

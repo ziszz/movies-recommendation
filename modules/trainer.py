@@ -105,7 +105,7 @@ class CFModel(tfrs.Model):
 
     def compute_loss(self, features: Dict[Text, tf.Tensor], training=False):
         try:
-            labels = features.pop([transformed_name(LABEL_KEY)])
+            labels = features.pop(transformed_name(LABEL_KEY))
             rating_predictions = self(features)
 
             return self.task(labels=labels, predictions=rating_predictions)

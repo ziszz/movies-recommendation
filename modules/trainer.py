@@ -99,7 +99,7 @@ class RecommenderNet(tf.keras.Model):
             dot_user_movies = tf.tensordot(users_vector, movies_vector, 2)
             x = dot_user_movies + users_bias + movies_bias
 
-            return tf.nn.sigmoid(dot_user_movies)
+            return tf.nn.sigmoid(x)
         except BaseException as err:
             logging.error(f"ERROR IN RecommenderNet::call:\n{err}")
 

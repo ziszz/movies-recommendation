@@ -77,10 +77,6 @@ def init_components(**kwargs):
                 splits=["eval"],
                 num_steps=kwargs["eval_steps"],
             ),
-            custom_config={
-                "movies": transform.outputs["transformed_examples"],
-                "movies_schema": transform.outputs["post_transform_schema"],
-            }
         )
 
         model_resolver = Resolver(

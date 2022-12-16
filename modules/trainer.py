@@ -13,7 +13,7 @@ def gzip_reader_fn(filenames):
     return tf.data.TFRecordDataset(filenames, compression_type="GZIP")
 
 
-def input_fn(file_pattern, tf_transform_output, batch_size=64):
+def input_fn(file_pattern, tf_transform_output, batch_size=1):
     transform_feature_spec = (
         tf_transform_output.transformed_feature_spec().copy()
     )
@@ -33,9 +33,7 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
     try:
         model.tft_layer = tf_transform_output.transform_features_layer()
 
-        @tf.function(
-            tf.TensorSpec(shape=[None], dtype=tf.string, name="examples")
-        )
+        @tf.function
         def serve_tf_examples_fn(serialized_tf_examples):
             try:
                 feature_spec = tf_transform_output.raw_feature_spec()
@@ -85,8 +83,8 @@ def _get_cf_model(unique_user_ids, unique_movie_ids):
 
         concatenate = layers.concatenate([users_vector, movies_vector])
 
-        deep = layers.Dense(128, activation='relu')(concatenate)
-        deep = layers.Dense(32, activation='relu')(deep)
+        deep = layers.Dense(128, activation=tf.nn.relu)(concatenate)
+        deep = layers.Dense(64, activation=tf.nn.relu)(deep)
         outputs = layers.Dense(1)(deep)
 
         model = keras.Model(
@@ -95,7 +93,7 @@ def _get_cf_model(unique_user_ids, unique_movie_ids):
         model.summary()
 
         model.compile(
-            optimizer=keras.optimizers.Adagrad(learning_rate=0.1),
+            optimizer=keras.optimizers.Adam(),
             loss=keras.losses.MeanSquaredError(),
             metrics=[keras.metrics.RootMeanSquaredError()],
         )
@@ -121,7 +119,7 @@ def run_fn(fn_args):
         users_vocab_str = [i.decode() for i in unique_user_ids]
 
         unique_movie_ids = tf_transform_output.vocabulary_by_name(
-            f"{FEATURE_KEYS[0]}_vocab")
+            f"{FEATURE_KEYS[1]}_vocab")
         movies_vocab_str = [i.decode() for i in unique_movie_ids]
 
         model = _get_cf_model(users_vocab_str, movies_vocab_str)
@@ -132,7 +130,7 @@ def run_fn(fn_args):
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir)
 
         early_stop_callbacks = keras.callbacks.EarlyStopping(
-            monitor="val_mean_squared_error",
+            monitor="val_root_mean_squared_error",
             mode="min",
             verbose=1,
             patience=10,
@@ -140,7 +138,7 @@ def run_fn(fn_args):
 
         model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
             fn_args.serving_model_dir,
-            monitor="val_mean_squared_error",
+            monitor="val_root_mean_squared_error",
             mode="min",
             verbose=1,
             save_best_only=True,
@@ -171,6 +169,8 @@ def run_fn(fn_args):
         signatures = {
             "serving_default": _get_serve_tf_examples_fn(
                 model, tf_transform_output,
+            ).get_concrete_function(
+                tf.TensorSpec(shape=[None], dtype=tf.string, name="examples")
             )
         }
 

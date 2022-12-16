@@ -6,7 +6,7 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 
-from modules.transform import FEATURE_KEYS, transformed_name
+from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
 
 
 def gzip_reader_fn(filenames):
@@ -23,6 +23,7 @@ def input_fn(file_pattern, tf_transform_output, batch_size=64):
         batch_size=batch_size,
         features=transform_feature_spec,
         reader=gzip_reader_fn,
+        label_key=transformed_name(LABEL_KEY)
     )
 
     return dataset
@@ -82,7 +83,7 @@ def _get_cf_model(unique_user_ids, unique_movie_ids):
         )(movies_input)
         movies_vector = layers.Flatten()(movies_embedding)
 
-        concatenate = tf.layers.concatenate([users_vector, movies_vector])
+        concatenate = layers.concatenate([users_vector, movies_vector])
 
         deep = layers.Dense(128, activation='relu')(concatenate)
         deep = layers.Dense(32, activation='relu')(deep)
@@ -94,7 +95,7 @@ def _get_cf_model(unique_user_ids, unique_movie_ids):
         model.summary()
 
         model.compile(
-            optimizers=keras.optimizers.Adagrad(learning_rate=0.1),
+            optimizer=keras.optimizers.Adagrad(learning_rate=0.1),
             loss=keras.losses.MeanSquaredError(),
             metrics=[keras.metrics.RootMeanSquaredError()],
         )

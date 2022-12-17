@@ -127,7 +127,7 @@ def init_components(**kwargs):
                 filesystem=pusher_pb2.PushDestination.Filesystem(
                     base_directory=os.path.join(
                         kwargs["serving_model_dir"],
-                        "cf_model",
+                        "cf-model",
                     ),
                 )
             )

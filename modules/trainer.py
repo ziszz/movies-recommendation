@@ -176,16 +176,31 @@ def run_fn(fn_args):
 
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir)
 
-        early_stop_callbacks = keras.callbacks.EarlyStopping(
+        rmse_early_stop_callbacks = keras.callbacks.EarlyStopping(
             monitor="val_root_mean_squared_error",
             mode="min",
             verbose=1,
             patience=10,
         )
+        
+        loss_early_stop_callbacks = keras.callbacks.EarlyStopping(
+            monitor="val_loss",
+            mode="min",
+            verbose=1,
+            patience=10,
+        )
 
-        model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
+        rmse_model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
             fn_args.serving_model_dir,
             monitor="val_root_mean_squared_error",
+            mode="min",
+            verbose=1,
+            save_best_only=True,
+        )
+        
+        loss_model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
+            fn_args.serving_model_dir,
+            monitor="val_loss",
             mode="min",
             verbose=1,
             save_best_only=True,
@@ -193,8 +208,10 @@ def run_fn(fn_args):
 
         callbacks = [
             tensorboard_callback,
-            early_stop_callbacks,
-            model_checkpoint_callback,
+            rmse_early_stop_callbacks,
+            loss_early_stop_callbacks,
+            rmse_model_checkpoint_callback,
+            loss_model_checkpoint_callback,
         ]
     except BaseException as err:
         logging.error(f"ERROR IN run_fn before fit:\n{err}")

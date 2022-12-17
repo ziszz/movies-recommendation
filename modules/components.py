@@ -10,7 +10,7 @@ from tfx.proto import example_gen_pb2, pusher_pb2, trainer_pb2
 from tfx.types import Channel
 from tfx.types.standard_artifacts import Model, ModelBlessing
 
-from modules.transform import LABEL_KEY
+from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
 
 
 def init_components(**kwargs):
@@ -89,11 +89,11 @@ def init_components(**kwargs):
         ).with_id("Latest_blessed_model_resolve")
 
         eval_config = tfma.EvalConfig(
-            model_specs=[
-                tfma.ModelSpec(label_key=LABEL_KEY),
-                tfma.ModelSpec(signature_name="serving_default"),
+            model_specs=[tfma.ModelSpec(
+                label_key=LABEL_KEY)],
+            slicing_specs=[
+                tfma.SlicingSpec(feature_keys=FEATURE_KEYS),
             ],
-            slicing_specs=[tfma.SlicingSpec()],
             metrics_specs=[
                 tfma.MetricsSpec(metrics=[
                     tfma.MetricConfig(
@@ -125,7 +125,7 @@ def init_components(**kwargs):
                 filesystem=pusher_pb2.PushDestination.Filesystem(
                     base_directory=os.path.join(
                         kwargs["serving_model_dir"],
-                        "movie-recommender",
+                        "cf_model",
                     ),
                 )
             )

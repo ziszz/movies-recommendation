@@ -123,6 +123,7 @@ def init_components(**kwargs):
 
         pusher = components.Pusher(
             model=trainer.outputs["model"],
+            model_blessing=evaluator.outputs["blessing"],
             push_destination=pusher_pb2.PushDestination(
                 filesystem=pusher_pb2.PushDestination.Filesystem(
                     base_directory=os.path.join(

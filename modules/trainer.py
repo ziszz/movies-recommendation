@@ -15,7 +15,7 @@ from modules.utils import input_fn, transformed_name
 class CFModel(tfrs.Model):
     def __init__(self, hyperparameters, tf_transform_output):
         super().__init__()
-        
+
         embedding_dims = hyperparameters["embedding_dims"]
         l2_regularizers = hyperparameters["l2_regularizers"]
         num_hidden_layers = hyperparameters["num_hidden_layers"]
@@ -149,9 +149,10 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
 def _get_model(hyperparameters, tf_transform_output):
     try:
         learning_rate = hyperparameters["learning_rate"]
-        
+
         model = CFModel(hyperparameters, tf_transform_output)
-        model.compile(optimizer=keras.optimizers.Adagrad(learning_rate=learning_rate))
+        model.compile(optimizer=keras.optimizers.Adam(
+            learning_rate=learning_rate))
 
         return model
     except BaseException as err:
@@ -182,7 +183,7 @@ def run_fn(fn_args):
             verbose=1,
             patience=10,
         )
-        
+
         loss_early_stop_callbacks = keras.callbacks.EarlyStopping(
             monitor="val_loss",
             mode="min",
@@ -197,7 +198,7 @@ def run_fn(fn_args):
             verbose=1,
             save_best_only=True,
         )
-        
+
         loss_model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
             fn_args.serving_model_dir,
             monitor="val_loss",

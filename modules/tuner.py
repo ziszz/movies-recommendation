@@ -156,7 +156,7 @@ def _get_model(hyperparameters, tf_transform_output):
             "learning_rate", values=[1e-1, 1e-2, 1e-3, 1e-4])
 
         model = CFModel(hyperparameters, tf_transform_output)
-        model.compile(optimizer=keras.optimizers.Adagrad(
+        model.compile(optimizer=keras.optimizers.Adam(
             learning_rate=learning_rate))
 
         return model

@@ -6,7 +6,9 @@ from tfx import components
 from tfx.dsl.components.common.resolver import Resolver
 from tfx.dsl.input_resolution.strategies.latest_blessed_model_strategy import \
     LatestBlessedModelStrategy
-from tfx.proto import example_gen_pb2, pusher_pb2, trainer_pb2
+from tfx.proto import (RequestSpec, ServingSpec, TensorFlowServing,
+                       TensorFlowServingRequestSpec, ValidationSpec,
+                       example_gen_pb2, pusher_pb2, trainer_pb2)
 from tfx.types import Channel
 from tfx.types.standard_artifacts import Model, ModelBlessing
 
@@ -93,6 +95,8 @@ def init_components(**kwargs):
                 label_key=transformed_name(LABEL_KEY))],
             slicing_specs=[
                 tfma.SlicingSpec(),
+                tfma.SlicingSpec(
+                    feature_keys=[transformed_name(FEATURE_KEYS[0])]),
             ],
             metrics_specs=[
                 tfma.MetricsSpec(metrics=[
@@ -119,9 +123,29 @@ def init_components(**kwargs):
             eval_config=eval_config,
         )
 
+        infra_validator = components.InfraValidator(
+            model=trainer.outputs["model"],
+            serving_spec=ServingSpec(
+                tensorflow_serving=TensorFlowServing(
+                    tags=["latest"],
+                ),
+            ),
+            validation_spec=ValidationSpec(
+                max_loading_time_seconds=60,
+                num_tries=3,
+            ),
+            request_spec=RequestSpec(
+                tensorflow_serving=TensorFlowServingRequestSpec(
+                    signature_names=["serving_default"]
+                ),
+                num_examples=10,
+            )
+        )
+
         pusher = components.Pusher(
             model=trainer.outputs["model"],
             model_blessing=evaluator.outputs["blessing"],
+            infra_blessing=infra_validator.outputs["blessing"],
             push_destination=pusher_pb2.PushDestination(
                 filesystem=pusher_pb2.PushDestination.Filesystem(
                     base_directory=kwargs["serving_model_dir"],
@@ -139,6 +163,7 @@ def init_components(**kwargs):
             trainer,
             model_resolver,
             evaluator,
+            infra_validator,
             pusher,
         )
     except BaseException as err:

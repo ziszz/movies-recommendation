@@ -82,48 +82,8 @@ def init_components(**kwargs):
             ),
         )
 
-        model_resolver = Resolver(
-            strategy_class=LatestBlessedModelStrategy,
-            model=Channel(type=Model),
-            model_blessing=Channel(type=ModelBlessing),
-        ).with_id("Latest_blessed_model_resolve")
-
-        eval_config = tfma.EvalConfig(
-            model_specs=[tfma.ModelSpec(
-                label_key=transformed_name(LABEL_KEY))],
-            slicing_specs=[
-                tfma.SlicingSpec(),
-                tfma.SlicingSpec(
-                    feature_keys=[transformed_name(FEATURE_KEYS[0])]),
-            ],
-            metrics_specs=[
-                tfma.MetricsSpec(metrics=[
-                    tfma.MetricConfig(
-                        class_name="MeanSquaredError",
-                        threshold=tfma.MetricThreshold(
-                            value_threshold=tfma.GenericValueThreshold(
-                                lower_bound={"value": 0.1},
-                            ),
-                            change_threshold=tfma.GenericChangeThreshold(
-                                direction=tfma.MetricDirection.LOWER_IS_BETTER,
-                                absolute={"value": 1.0},
-                            ),
-                        ),
-                    ),
-                ])
-            ]
-        )
-
-        evaluator = components.Evaluator(
-            examples=example_gen.outputs["examples"],
-            model=trainer.outputs["model"],
-            baseline_model=model_resolver.outputs["model"],
-            eval_config=eval_config,
-        )
-
         pusher = components.Pusher(
             model=trainer.outputs["model"],
-            model_blessing=evaluator.outputs["blessing"],
             push_destination=pusher_pb2.PushDestination(
                 filesystem=pusher_pb2.PushDestination.Filesystem(
                     base_directory=kwargs["serving_model_dir"],
@@ -139,8 +99,6 @@ def init_components(**kwargs):
             transform,
             tuner,
             trainer,
-            model_resolver,
-            evaluator,
             pusher,
         )
     except BaseException as err:

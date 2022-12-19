@@ -1,6 +1,3 @@
-import os
-
-import pandas as pd
 import tensorflow as tf
 from absl import logging
 

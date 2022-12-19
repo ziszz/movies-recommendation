@@ -40,13 +40,13 @@ class CFModel(tfrs.Model):
         embedding_dims = hyperparameters.Int(
             "embedding_dims", min_value=16, max_value=1024, step=32)
         l2_regularizers = hyperparameters.Choice(
-            "l2_regularizers", values=[1e-2, 1e-3, 1e-4])
+            "l2_regularizers", values=[1e-2, 1e-3, 1e-4, 1e-5])
         num_hidden_layers = hyperparameters.Choice(
             "num_hidden_layers", values=[1, 2, 3])
         dense_unit = hyperparameters.Int(
-            "dense_unit", min_value=8, max_value=256, step=32)
+            "dense_unit", min_value=8, max_value=512, step=32)
         dropout_rate = hyperparameters.Float(
-            "dropout_rate", min_value=0.1, max_value=0.7, step=0.1)
+            "dropout_rate", min_value=0.1, max_value=0.8, step=0.1)
 
         self.user_model = self._build_user_model(
             tf_transform_output, embedding_dims, l2_regularizers)
@@ -153,7 +153,7 @@ class CFModel(tfrs.Model):
 def _get_model(hyperparameters, tf_transform_output):
     try:
         learning_rate = hyperparameters.Choice(
-            "learning_rate", values=[1e-1, 1e-2, 1e-3, 1e-4])
+            "learning_rate", values=[1e-2, 1e-3, 1e-4, 1e-5])
 
         model = CFModel(hyperparameters, tf_transform_output)
         model.compile(optimizer=keras.optimizers.Adam(

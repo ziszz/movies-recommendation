@@ -92,6 +92,7 @@ def init_components(**kwargs):
             model_specs=[tfma.ModelSpec(
                 label_key=transformed_name(LABEL_KEY))],
             slicing_specs=[
+                tfma.SlicingSpec(),
                 tfma.SlicingSpec(feature_keys=[
                     transformed_name(f) for f in FEATURE_KEYS
                 ]),
@@ -126,10 +127,7 @@ def init_components(**kwargs):
             model_blessing=evaluator.outputs["blessing"],
             push_destination=pusher_pb2.PushDestination(
                 filesystem=pusher_pb2.PushDestination.Filesystem(
-                    base_directory=os.path.join(
-                        kwargs["serving_model_dir"],
-                        "cf-model",
-                    ),
+                    base_directory=kwargs["serving_model_dir"],
                 )
             )
         )

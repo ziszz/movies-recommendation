@@ -93,9 +93,6 @@ def init_components(**kwargs):
                 label_key=transformed_name(LABEL_KEY))],
             slicing_specs=[
                 tfma.SlicingSpec(),
-                tfma.SlicingSpec(feature_keys=[
-                    transformed_name(f) for f in FEATURE_KEYS
-                ]),
             ],
             metrics_specs=[
                 tfma.MetricsSpec(metrics=[

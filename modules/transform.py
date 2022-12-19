@@ -12,7 +12,7 @@ FEATURE_KEYS = [
 LABEL_KEY = "rating"
 
 def transformed_name(key):
-    return f"{key.lower()}_xf"
+    return f"{key}_xf"
 
 
 def preprocessing_fn(inputs):

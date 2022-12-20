@@ -72,7 +72,7 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
         )(movies_input)
         movies_vector = layers.Flatten()(movies_embedding)
 
-        concatenate = tf.layers.concatenate([users_vector, movies_vector])
+        concatenate = layers.concatenate([users_vector, movies_vector])
         deep = layers.Dense(dense_unit, activation='relu')(concatenate)
 
         for _ in range(num_hidden_layers):
@@ -94,7 +94,7 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
 
         return model
     except BaseException as err:
-        logging.error(f"ERROR IN _get_model:\n{err}")
+        logging.error(f"ERROR IN _get_cf_model:\n{err}")
 
 
 def tuner_fn(fn_args):

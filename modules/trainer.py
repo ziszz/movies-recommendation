@@ -79,7 +79,7 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
         model.summary()
 
         model.compile(
-            optimizer=keras.optimizers.Adagrad(learning_rate=learning_rate),
+            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
             loss=keras.losses.MeanSquaredError(),
             metrics=[keras.metrics.RootMeanSquaredError()],
         )
@@ -129,28 +129,10 @@ def run_fn(fn_args):
             patience=10,
         )
 
-        rmse_model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
-            fn_args.serving_model_dir,
-            monitor="val_root_mean_squared_error",
-            mode="min",
-            verbose=1,
-            save_best_only=True,
-        )
-
-        loss_model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
-            fn_args.serving_model_dir,
-            monitor="val_loss",
-            mode="min",
-            verbose=1,
-            save_best_only=True,
-        )
-
         callbacks = [
             tensorboard_callback,
             rmse_early_stop_callbacks,
             loss_early_stop_callbacks,
-            rmse_model_checkpoint_callback,
-            loss_model_checkpoint_callback,
         ]
     except BaseException as err:
         logging.error(f"ERROR IN run_fn before fit:\n{err}")

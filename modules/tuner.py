@@ -87,7 +87,7 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
         model.summary()
 
         model.compile(
-            optimizers=keras.optimizer.Adagrad(learning_rate=learning_rate),
+            optimizer=keras.optimizers.Adagrad(learning_rate=learning_rate),
             loss=keras.losses.MeanSquaredError(),
             metrics=[keras.metrics.RootMeanSquaredError()],
         )

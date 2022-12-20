@@ -32,10 +32,8 @@ loss_early_stop = tf.keras.callbacks.EarlyStopping(
 )
 
 
-class CFModel(tfrs.Model):
-    def __init__(self, hyperparameters, tf_transform_output):
-        super().__init__()
-
+def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
+    try:
         # hyperparameters
         embedding_dims = hyperparameters.Int(
             "embedding_dims", min_value=16, max_value=1024, step=32)
@@ -47,117 +45,52 @@ class CFModel(tfrs.Model):
             "dense_unit", min_value=8, max_value=512, step=32)
         dropout_rate = hyperparameters.Float(
             "dropout_rate", min_value=0.1, max_value=0.8, step=0.1)
-
-        self.user_model = self._build_user_model(
-            tf_transform_output, embedding_dims, l2_regularizers)
-        self.movie_model = self._build_movie_model(
-            tf_transform_output, embedding_dims, l2_regularizers)
-        self.rating_model = self._build_rating_model(
-            num_hidden_layers, dense_unit, dropout_rate)
-
-        self.task = tfrs.tasks.Ranking(
-            loss=keras.losses.MeanSquaredError(),
-            metrics=[keras.metrics.RootMeanSquaredError()],
-        )
-
-    def _build_user_model(self, tf_transform_output, embedding_dims, l2_regularizers):
-        try:
-            unique_user_ids = tf_transform_output.vocabulary_by_name(
-                f"{FEATURE_KEYS[0]}_vocab")
-            users_vocab_str = [b.decode() for b in unique_user_ids]
-
-            model = keras.Sequential([
-                layers.Input(shape=(1,), name=transformed_name(
-                    FEATURE_KEYS[0]), dtype=tf.int64),
-                layers.Lambda(lambda x: tf.as_string(x)),
-                layers.StringLookup(
-                    vocabulary=users_vocab_str, mask_token=None),
-                layers.Embedding(
-                    len(users_vocab_str) + 1,
-                    embedding_dims,
-                    embeddings_initializer='he_normal',
-                    embeddings_regularizer=keras.regularizers.l2(
-                        l2_regularizers),
-                ),
-            ])
-
-            return model
-        except BaseException as err:
-            logging.error(f"ERROR IN CFModel::_build_user_model:\n{err}")
-
-    def _build_movie_model(self, tf_transform_output, embedding_dims, l2_regularizers):
-        try:
-            unique_movie_ids = tf_transform_output.vocabulary_by_name(
-                f"{FEATURE_KEYS[1]}_vocab")
-            movies_vocab_str = [b.decode() for b in unique_movie_ids]
-
-            model = keras.Sequential([
-                layers.Input(shape=(1,), name=transformed_name(
-                    FEATURE_KEYS[1]), dtype=tf.int64),
-                layers.Lambda(lambda x: tf.as_string(x)),
-                layers.StringLookup(
-                    vocabulary=movies_vocab_str, mask_token=None),
-                layers.Embedding(
-                    len(movies_vocab_str) + 1,
-                    embedding_dims,
-                    embeddings_initializer='he_normal',
-                    embeddings_regularizer=keras.regularizers.l2(
-                        l2_regularizers),
-                ),
-            ])
-
-            return model
-        except BaseException as err:
-            logging.error(f"ERROR IN CFModel::_build_movie_model:\n{err}")
-
-    def _build_rating_model(self, num_hidden_layers, dense_unit, dropout_rate):
-        try:
-            flc_layers = []
-
-            for _ in range(num_hidden_layers):
-                flc_layers.append(layers.Dense(
-                    dense_unit, activation=tf.nn.relu))
-                flc_layers.append(layers.Dropout(dropout_rate))
-
-            flc_layers.append(layers.Dense(1))
-
-            model = keras.Sequential(flc_layers)
-
-            return model
-        except BaseException as err:
-            logging.error(f"ERROR IN CFModel::_build_rating_model:\n{err}")
-
-    def call(self, features: Dict[Text, tf.Tensor]):
-        try:
-            user_embedding = self.user_model(
-                features[transformed_name(FEATURE_KEYS[0])])
-            movie_embedding = self.movie_model(
-                features[transformed_name(FEATURE_KEYS[1])])
-
-            return self.rating_model(
-                tf.concat([user_embedding, movie_embedding], axis=2))
-        except BaseException as err:
-            logging.error(f"ERROR IN CFModel::call:\n{err}")
-
-    def compute_loss(self, features: Tuple, training=False):
-        try:
-            labels = features[1]
-            rating_predictions = self(features[0])
-
-            return self.task(labels=labels, predictions=rating_predictions)
-        except BaseException as err:
-            logging.error(
-                f"ERROR IN CFModel::compute_loss:\n{err}")
-
-
-def _get_model(hyperparameters, tf_transform_output):
-    try:
         learning_rate = hyperparameters.Choice(
             "learning_rate", values=[1e-2, 1e-3, 1e-4, 1e-5])
 
-        model = CFModel(hyperparameters, tf_transform_output)
-        model.compile(optimizer=keras.optimizers.Adam(
-            learning_rate=learning_rate))
+        # users embedding
+        users_input = layers.Input(
+            shape=(1,), name=transformed_name(FEATURE_KEYS[0]), dtype=tf.int64)
+        users_embedding = layers.Embedding(
+            len(unique_user_ids) + 1,
+            embedding_dims,
+            embeddings_initializer="he_normal",
+            embeddings_regularizer=keras.regularizers.l2(
+                l2_regularizers),
+        )(users_input)
+        users_vector = layers.Flatten()(users_embedding)
+
+        # movie embedding
+        movies_input = layers.Input(
+            shape=(1,), name=transformed_name(FEATURE_KEYS[1]), dtype=tf.int64)
+        movies_embedding = layers.Embedding(
+            len(unique_movie_ids) + 1,
+            embedding_dims,
+            embeddings_initializer="he_normal",
+            embeddings_regularizer=keras.regularizers.l2(
+                l2_regularizers),
+        )(movies_input)
+        movies_vector = layers.Flatten()(movies_embedding)
+
+        concatenate = tf.layers.concatenate([users_vector, movies_vector])
+        deep = layers.Dense(dense_unit, activation='relu')(concatenate)
+
+        for _ in range(num_hidden_layers):
+            deep = layers.Dense(dense_unit, activation='relu')(deep)
+            deep = layers.Dropout(dropout_rate)
+
+        outputs = layers.Dense(1)(deep)
+
+        model = keras.Model(
+            inputs=[users_input, movies_input], outputs=outputs)
+
+        model.summary()
+
+        model.compile(
+            optimizers=keras.optimizers.Adagrad(learning_rate=learning_rate),
+            loss=keras.losses.MeanSquaredError(),
+            metrics=[keras.metrics.RootMeanSquaredError()],
+        )
 
         return model
     except BaseException as err:
@@ -174,14 +107,23 @@ def tuner_fn(fn_args):
         eval_dataset = input_fn(
             fn_args.eval_files[0], transformed_name(LABEL_KEY), tf_transform_output, batch_size=128)
 
+        unique_user_ids = tf_transform_output.vocabulary_by_name(
+            f"{FEATURE_KEYS[0]}_vocab")
+        users_vocab_str = [b.decode() for b in unique_user_ids]
+
+        unique_movie_ids = tf_transform_output.vocabulary_by_name(
+            f"{FEATURE_KEYS[1]}_vocab")
+        movies_vocab_str = [b.decode() for b in unique_movie_ids]
+
         tuner = kt.Hyperband(
-            hypermodel=lambda hp: _get_model(
+            hypermodel=lambda hp: _get_cf_model(
                 hyperparameters=hp,
-                tf_transform_output=tf_transform_output,
+                unique_user_ids=users_vocab_str,
+                unique_movie_ids=movies_vocab_str,
             ),
             objective=[
                 kt.Objective(
-                    "val_loss",
+                    "val_lounique_user_idss",
                     direction="min",
                 ),
                 kt.Objective(

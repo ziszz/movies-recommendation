@@ -42,28 +42,27 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
         dropout_rate = hyperparameters["dropout_rate"]
         learning_rate = hyperparameters["learning_rate"]
 
-        # users embedding
-        users_input = layers.Input(
+        inputs = layers.Input(
             shape=(1,), name=transformed_name(FEATURE_KEYS[0]), dtype=tf.int64)
+
+        # users embedding
         users_embedding = layers.Embedding(
             len(unique_user_ids) + 1,
             embedding_dims,
             embeddings_initializer="he_normal",
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
-        )(users_input)
+        )(inputs)
         users_vector = layers.Flatten()(users_embedding)
 
         # movie embedding
-        movies_input = layers.Input(
-            shape=(1,), name=transformed_name(FEATURE_KEYS[1]), dtype=tf.int64)
         movies_embedding = layers.Embedding(
             len(unique_movie_ids) + 1,
             embedding_dims,
             embeddings_initializer="he_normal",
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
-        )(movies_input)
+        )(inputs)
         movies_vector = layers.Flatten()(movies_embedding)
 
         concatenate = layers.concatenate([users_vector, movies_vector])
@@ -75,8 +74,7 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
 
         outputs = layers.Dense(1)(deep)
 
-        model = keras.Model(
-            inputs=[users_input, movies_input], outputs=outputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
 
         model.summary()
 
@@ -117,14 +115,21 @@ def run_fn(fn_args):
 
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir)
 
-        early_stop_callbacks = keras.callbacks.EarlyStopping(
+        rmse_early_stop_callbacks = keras.callbacks.EarlyStopping(
             monitor="val_root_mean_squared_error",
             mode="min",
             verbose=1,
             patience=10,
         )
 
-        model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
+        loss_early_stop_callbacks = keras.callbacks.EarlyStopping(
+            monitor="val_loss",
+            mode="min",
+            verbose=1,
+            patience=10,
+        )
+
+        rmse_model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
             fn_args.serving_model_dir,
             monitor="val_root_mean_squared_error",
             mode="min",
@@ -132,10 +137,20 @@ def run_fn(fn_args):
             save_best_only=True,
         )
 
+        loss_model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
+            fn_args.serving_model_dir,
+            monitor="val_loss",
+            mode="min",
+            verbose=1,
+            save_best_only=True,
+        )
+
         callbacks = [
             tensorboard_callback,
-            early_stop_callbacks,
-            model_checkpoint_callback,
+            rmse_early_stop_callbacks,
+            loss_early_stop_callbacks,
+            rmse_model_checkpoint_callback,
+            loss_model_checkpoint_callback,
         ]
     except BaseException as err:
         logging.error(f"ERROR IN run_fn before fit:\n{err}")

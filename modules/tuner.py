@@ -16,8 +16,15 @@ TunerFnResult = NamedTuple("TunerFnResult", [
     ("fit_kwargs", Dict[Text, Any])
 ])
 
-early_stop = tf.keras.callbacks.EarlyStopping(
+rmse_early_stop = tf.keras.callbacks.EarlyStopping(
     monitor="val_root_mean_squared_error",
+    mode="min",
+    verbose=1,
+    patience=10,
+)
+
+loss_early_stop = tf.keras.callbacks.EarlyStopping(
+    monitor="val_loss",
     mode="min",
     verbose=1,
     patience=10,
@@ -40,28 +47,27 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
         learning_rate = hyperparameters.Choice(
             "learning_rate", values=[1e-2, 1e-3, 1e-4, 1e-5])
 
-        # users embedding
-        users_input = layers.Input(
+        inputs = layers.Input(
             shape=(1,), name=transformed_name(FEATURE_KEYS[0]), dtype=tf.int64)
+        
+        # users embedding
         users_embedding = layers.Embedding(
             len(unique_user_ids) + 1,
             embedding_dims,
             embeddings_initializer="he_normal",
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
-        )(users_input)
+        )(inputs)
         users_vector = layers.Flatten()(users_embedding)
 
         # movie embedding
-        movies_input = layers.Input(
-            shape=(1,), name=transformed_name(FEATURE_KEYS[1]), dtype=tf.int64)
         movies_embedding = layers.Embedding(
             len(unique_movie_ids) + 1,
             embedding_dims,
             embeddings_initializer="he_normal",
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
-        )(movies_input)
+        )(inputs)
         movies_vector = layers.Flatten()(movies_embedding)
 
         concatenate = layers.concatenate([users_vector, movies_vector])
@@ -73,8 +79,7 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
 
         outputs = layers.Dense(1)(deep)
 
-        model = keras.Model(
-            inputs=[users_input, movies_input], outputs=outputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
 
         model.summary()
 
@@ -136,7 +141,7 @@ def tuner_fn(fn_args):
                 "validation_data": eval_dataset,
                 "steps_per_epoch": fn_args.train_steps,
                 "validation_steps": fn_args.eval_steps,
-                "callbacks": [early_stop]
+                "callbacks": [rmse_early_stop, loss_early_stop]
             },
         )
     except BaseException as err:

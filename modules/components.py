@@ -52,7 +52,7 @@ def init_components(**kwargs):
             module_file=os.path.abspath(kwargs["tuner_module"]),
             examples=transform.outputs["transformed_examples"],
             transform_graph=transform.outputs["transform_graph"],
-            schema=transform.outputs["post_transform_schema"],
+            schema=schema_gen.outputs["schema"],
             train_args=trainer_pb2.TrainArgs(
                 splits=["train"],
                 num_steps=kwargs["train_steps"],
@@ -70,7 +70,7 @@ def init_components(**kwargs):
             module_file=os.path.abspath(kwargs["trainer_module"]),
             examples=transform.outputs["transformed_examples"],
             transform_graph=transform.outputs["transform_graph"],
-            schema=transform.outputs["post_transform_schema"],
+            schema=schema_gen.outputs["schema"],
             hyperparameters=tuner.outputs["best_hyperparameters"],
             train_args=trainer_pb2.TrainArgs(
                 splits=["train"],

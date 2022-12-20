@@ -8,7 +8,7 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 
-from modules.transform import FEATURE_KEYS
+from modules.transform import FEATURE_KEYS, LABEL_KEY
 from modules.utils import input_fn, transformed_name
 
 
@@ -166,9 +166,9 @@ def run_fn(fn_args):
         tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
 
         train_dataset = input_fn(
-            fn_args.train_files, tf_transform_output, batch_size=128)
+            fn_args.train_files, transformed_name(LABEL_KEY), tf_transform_output, batch_size=128)
         eval_dataset = input_fn(
-            fn_args.eval_files, tf_transform_output, batch_size=128)
+            fn_args.eval_files, transformed_name(LABEL_KEY), tf_transform_output, batch_size=128)
 
         model = _get_model(hyperparameters, tf_transform_output)
 

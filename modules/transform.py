@@ -2,6 +2,8 @@ import tensorflow as tf
 import tensorflow_transform as tft
 from absl import logging
 
+from modules.utils import transformed_name
+
 NUM_OF_BUCKETS = 1
 
 FEATURE_KEYS = [
@@ -10,9 +12,6 @@ FEATURE_KEYS = [
 ]
 
 LABEL_KEY = "rating"
-
-def transformed_name(key):
-    return f"{key.lower()}_xf"
 
 
 def preprocessing_fn(inputs):

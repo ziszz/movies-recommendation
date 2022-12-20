@@ -9,8 +9,8 @@ from absl import logging
 from keras import layers
 from keras_tuner.engine import base_tuner
 
-from modules.transform import FEATURE_KEYS, transformed_name
-from modules.utils import input_fn
+from modules.transform import FEATURE_KEYS, LABEL_KEY
+from modules.utils import input_fn, transformed_name
 
 TunerFnResult = NamedTuple("TunerFnResult", [
     ("tuner", base_tuner.BaseTuner),
@@ -170,9 +170,9 @@ def tuner_fn(fn_args):
             fn_args.transform_graph_path)
 
         train_dataset = input_fn(
-            fn_args.train_files[0], tf_transform_output, batch_size=128)
+            fn_args.train_files[0], transformed_name(LABEL_KEY), tf_transform_output, batch_size=128)
         eval_dataset = input_fn(
-            fn_args.eval_files[0], tf_transform_output, batch_size=128)
+            fn_args.eval_files[0], transformed_name(LABEL_KEY), tf_transform_output, batch_size=128)
 
         tuner = kt.Hyperband(
             hypermodel=lambda hp: _get_model(

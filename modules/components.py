@@ -97,11 +97,25 @@ def init_components(**kwargs):
             ],
             slicing_specs=[
                 tfma.SlicingSpec(),
+                tfma.SlicingSpec(
+                    feature_keys=[transformed_name(FEATURE_KEYS[0])])
             ],
             metrics_specs=[
                 tfma.MetricsSpec(metrics=[
                     tfma.MetricConfig(
                         class_name="MeanSquaredError",
+                        threshold=tfma.MetricThreshold(
+                            value_threshold=tfma.GenericValueThreshold(
+                                lower_bound={"value": 0.1},
+                            ),
+                            change_threshold=tfma.GenericChangeThreshold(
+                                direction=tfma.MetricDirection.LOWER_IS_BETTER,
+                                absolute={"value": 1.0},
+                            ),
+                        ),
+                    ),
+                    tfma.MetricConfig(
+                        class_name="RootMeanSquaredError",
                         threshold=tfma.MetricThreshold(
                             value_threshold=tfma.GenericValueThreshold(
                                 lower_bound={"value": 0.1},

@@ -68,12 +68,12 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
         )(movies_input)
         movies_vector = layers.Flatten()(movies_embedding)
 
-        concatenate = tf.layers.concatenate([users_vector, movies_vector])
+        concatenate = layers.concatenate([users_vector, movies_vector])
         deep = layers.Dense(dense_unit, activation='relu')(concatenate)
 
         for _ in range(num_hidden_layers):
             deep = layers.Dense(dense_unit, activation='relu')(deep)
-            deep = layers.Dropout(dropout_rate)
+            deep = layers.Dropout(dropout_rate)(deep)
 
         outputs = layers.Dense(1)(deep)
 

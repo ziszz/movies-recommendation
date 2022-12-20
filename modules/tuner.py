@@ -77,7 +77,7 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
 
         for _ in range(num_hidden_layers):
             deep = layers.Dense(dense_unit, activation='relu')(deep)
-            deep = layers.Dropout(dropout_rate)
+            deep = layers.Dropout(dropout_rate)(deep)
 
         outputs = layers.Dense(1)(deep)
 

@@ -1,9 +1,8 @@
-from typing import Any, Dict, NamedTuple, Text, Tuple
+from typing import Any, Dict, NamedTuple, Text
 
 import keras
 import keras_tuner as kt
 import tensorflow as tf
-import tensorflow_recommenders as tfrs
 import tensorflow_transform as tft
 from absl import logging
 from keras import layers
@@ -17,15 +16,8 @@ TunerFnResult = NamedTuple("TunerFnResult", [
     ("fit_kwargs", Dict[Text, Any])
 ])
 
-rmse_early_stop = tf.keras.callbacks.EarlyStopping(
+early_stop = tf.keras.callbacks.EarlyStopping(
     monitor="val_root_mean_squared_error",
-    mode="min",
-    verbose=1,
-    patience=10,
-)
-
-loss_early_stop = tf.keras.callbacks.EarlyStopping(
-    monitor="val_loss",
     mode="min",
     verbose=1,
     patience=10,
@@ -144,7 +136,7 @@ def tuner_fn(fn_args):
                 "validation_data": eval_dataset,
                 "steps_per_epoch": fn_args.train_steps,
                 "validation_steps": fn_args.eval_steps,
-                "callbacks": [rmse_early_stop, loss_early_stop]
+                "callbacks": [early_stop]
             },
         )
     except BaseException as err:

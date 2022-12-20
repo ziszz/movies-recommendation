@@ -90,7 +90,10 @@ def init_components(**kwargs):
 
         eval_config = tfma.EvalConfig(
             model_specs=[
-                tfma.ModelSpec(label_key=LABEL_KEY),
+                tfma.ModelSpec(
+                    label_key=LABEL_KEY,
+                    signature_name="serving_default",
+                ),
             ],
             slicing_specs=[
                 tfma.SlicingSpec(),

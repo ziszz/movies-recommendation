@@ -9,6 +9,8 @@ from keras import layers
 from modules.transform import FEATURE_KEYS, LABEL_KEY
 from modules.utils import input_fn, transformed_name
 
+UNUSED_FEATURE_KEY = [LABEL_KEY, "timestamp"]
+
 
 def _get_serve_tf_examples_fn(model, tf_transform_output):
     try:
@@ -18,7 +20,9 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         def serve_tf_examples_fn(serialized_tf_examples):
             try:
                 feature_spec = tf_transform_output.raw_feature_spec()
-                feature_spec.pop(LABEL_KEY)
+
+                for key in UNUSED_FEATURE_KEY:
+                    feature_spec.pop(key)
 
                 parsed_features = tf.io.parse_example(
                     serialized_tf_examples, feature_spec)

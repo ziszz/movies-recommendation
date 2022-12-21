@@ -7,16 +7,6 @@ def transformed_name(key):
     return f"{key.lower()}_xf"
 
 
-def filter_dataset(data: pd.DataFrame, dropped_columns):
-    try:
-        df = data
-        df = df.drop(columns=dropped_columns, axis=1)
-
-        return df
-    except BaseException as err:
-        logging.error(f"ERROR IN filter_dataset:\n{err}")
-
-
 def _gzip_reader_fn(filenames):
     try:
         return tf.data.TFRecordDataset(filenames, compression_type="GZIP")

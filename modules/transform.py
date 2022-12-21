@@ -6,10 +6,7 @@ from modules.utils import transformed_name
 
 NUM_OF_BUCKETS = 1
 
-FEATURE_KEYS = [
-    "userId",
-    "movieId",
-]
+FEATURE_KEYS = ["userId", "movieId"]
 
 LABEL_KEY = "rating"
 

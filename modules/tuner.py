@@ -46,28 +46,29 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
             "dropout_rate", min_value=0.1, max_value=0.8, step=0.1)
         learning_rate = hyperparameters.Choice(
             "learning_rate", values=[1e-2, 1e-3, 1e-4, 1e-5])
-
-        inputs = layers.Input(
-            shape=(1,), name=transformed_name(FEATURE_KEYS[0]), dtype=tf.int64)
         
         # users embedding
+        user_input = layers.Input(
+            shape=(1,), name=transformed_name(FEATURE_KEYS[0]), dtype=tf.int64)
         users_embedding = layers.Embedding(
             len(unique_user_ids) + 1,
             embedding_dims,
             embeddings_initializer="he_normal",
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
-        )(inputs)
+        )(user_input)
         users_vector = layers.Flatten()(users_embedding)
 
         # movie embedding
+        movie_input = layers.Input(
+            shape=(1,), name=transformed_name(FEATURE_KEYS[1]), dtype=tf.int64)
         movies_embedding = layers.Embedding(
             len(unique_movie_ids) + 1,
             embedding_dims,
             embeddings_initializer="he_normal",
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
-        )(inputs)
+        )(movie_input)
         movies_vector = layers.Flatten()(movies_embedding)
 
         concatenate = layers.concatenate([users_vector, movies_vector])
@@ -79,7 +80,7 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
 
         outputs = layers.Dense(1)(deep)
 
-        model = keras.Model(inputs=inputs, outputs=outputs)
+        model = keras.Model(inputs=[user_input, movie_input], outputs=outputs)
 
         model.summary()
 

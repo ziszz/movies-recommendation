@@ -95,11 +95,7 @@ def init_components(**kwargs):
                     signature_name="serving_default",
                 ),
             ],
-            slicing_specs=[
-                tfma.SlicingSpec(),
-                tfma.SlicingSpec(
-                    feature_keys=[transformed_name(FEATURE_KEYS[0])])
-            ],
+            slicing_specs=[tfma.SlicingSpec()],
             metrics_specs=[
                 tfma.MetricsSpec(metrics=[
                     tfma.MetricConfig(

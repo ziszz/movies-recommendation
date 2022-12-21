@@ -42,27 +42,28 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
         dropout_rate = hyperparameters["dropout_rate"]
         learning_rate = hyperparameters["learning_rate"]
 
-        inputs = layers.Input(
-            shape=(1,), name=transformed_name(FEATURE_KEYS[0]), dtype=tf.int64)
-
         # users embedding
+        user_input = layers.Input(
+            shape=(1,), name=transformed_name(FEATURE_KEYS[0]), dtype=tf.int64)
         users_embedding = layers.Embedding(
             len(unique_user_ids) + 1,
             embedding_dims,
             embeddings_initializer="he_normal",
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
-        )(inputs)
+        )(user_input)
         users_vector = layers.Flatten()(users_embedding)
 
         # movie embedding
+        movie_input = layers.Input(
+            shape=(1,), name=transformed_name(FEATURE_KEYS[1]), dtype=tf.int64)
         movies_embedding = layers.Embedding(
             len(unique_movie_ids) + 1,
             embedding_dims,
             embeddings_initializer="he_normal",
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
-        )(inputs)
+        )(movie_input)
         movies_vector = layers.Flatten()(movies_embedding)
 
         concatenate = layers.concatenate([users_vector, movies_vector])
@@ -74,7 +75,7 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
 
         outputs = layers.Dense(1)(deep)
 
-        model = keras.Model(inputs=inputs, outputs=outputs)
+        model = keras.Model(inputs=[user_input, movie_input], outputs=outputs)
 
         model.summary()
 
@@ -155,7 +156,7 @@ def run_fn(fn_args):
             "serving_default": _get_serve_tf_examples_fn(
                 model, tf_transform_output,
             ).get_concrete_function(
-                tf.TensorSpec(shape=(None,), dtype=tf.string, name="examples")
+                tf.TensorSpec(shape=[None], dtype=tf.string, name="examples")
             )
         }
 

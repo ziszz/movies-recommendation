@@ -9,8 +9,7 @@ from tfx.dsl.input_resolution.strategies.latest_blessed_model_strategy import \
 from tfx.proto import example_gen_pb2, pusher_pb2, trainer_pb2
 from tfx.types import Channel
 from tfx.types.standard_artifacts import Model, ModelBlessing
-
-from modules.transform import FEATURE_KEYS, LABEL_KEY, transformed_name
+from transform import FEATURE_KEYS, LABEL_KEY, transformed_name
 
 
 def init_components(**kwargs):

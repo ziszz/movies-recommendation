@@ -5,8 +5,8 @@ import tensorflow as tf
 import tensorflow_transform as tft
 from absl import logging
 from keras import layers
+from transform import FEATURE_KEYS, LABEL_KEY
 
-from modules.transform import FEATURE_KEYS, LABEL_KEY
 from modules.utils import input_fn, transformed_name
 
 UNUSED_FEATURE_KEY = [LABEL_KEY, "timestamp"]

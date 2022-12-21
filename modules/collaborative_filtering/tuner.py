@@ -7,8 +7,8 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 from keras_tuner.engine import base_tuner
+from transform import FEATURE_KEYS, LABEL_KEY
 
-from modules.transform import FEATURE_KEYS, LABEL_KEY
 from modules.utils import input_fn, transformed_name
 
 TunerFnResult = NamedTuple("TunerFnResult", [
@@ -46,7 +46,7 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
             "dropout_rate", min_value=0.1, max_value=0.8, step=0.1)
         learning_rate = hyperparameters.Choice(
             "learning_rate", values=[1e-2, 1e-3, 1e-4, 1e-5])
-        
+
         # users embedding
         user_input = layers.Input(
             shape=(1,), name=transformed_name(FEATURE_KEYS[0]), dtype=tf.int64)

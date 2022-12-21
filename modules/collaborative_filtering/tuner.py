@@ -7,8 +7,8 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 from keras_tuner.engine import base_tuner
-from transform import FEATURE_KEYS, LABEL_KEY
 
+from modules.collaborative_filtering.transform import FEATURE_KEYS, LABEL_KEY
 from modules.utils import input_fn, transformed_name
 
 TunerFnResult = NamedTuple("TunerFnResult", [

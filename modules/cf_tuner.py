@@ -8,7 +8,7 @@ from absl import logging
 from keras import layers
 from keras_tuner.engine import base_tuner
 
-from modules.collaborative_filtering.transform import FEATURE_KEYS, LABEL_KEY
+from modules.cf_transform import FEATURE_KEYS, LABEL_KEY
 from modules.utils import input_fn, transformed_name
 
 TunerFnResult = NamedTuple("TunerFnResult", [
@@ -57,7 +57,6 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
         )(user_input)
-        users_vector = layers.Flatten()(users_embedding)
 
         # movie embedding
         movie_input = layers.Input(
@@ -69,13 +68,12 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
         )(movie_input)
-        movies_vector = layers.Flatten()(movies_embedding)
 
-        concatenate = layers.concatenate([users_vector, movies_vector])
-        deep = layers.Dense(dense_unit, activation='relu')(concatenate)
+        concatenate = layers.concatenate([users_embedding, movies_embedding])
+        deep = layers.Dense(dense_unit, activation=tf.nn.relu)(concatenate)
 
         for _ in range(num_hidden_layers):
-            deep = layers.Dense(dense_unit, activation='relu')(deep)
+            deep = layers.Dense(dense_unit, activation=tf.nn.relu)(deep)
             deep = layers.Dropout(dropout_rate)(deep)
 
         outputs = layers.Dense(1)(deep)

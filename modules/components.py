@@ -10,8 +10,7 @@ from tfx.proto import example_gen_pb2, pusher_pb2, trainer_pb2
 from tfx.types import Channel
 from tfx.types.standard_artifacts import Model, ModelBlessing
 
-from modules.collaborative_filtering.transform import (FEATURE_KEYS, LABEL_KEY,
-                                                       transformed_name)
+from modules.cf_transform import LABEL_KEY
 
 
 def init_components(**kwargs):

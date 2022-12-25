@@ -6,28 +6,27 @@ from modules.utils import transformed_name
 
 NUM_OF_BUCKETS = 1
 
-FEATURE_KEYS = ["userId", "movieId"]
-LABEL_KEY = "genres"
+NUMERICAL_FEATURES = ["userId", "movieId"]
+CATEGORICAL_FEATURE = "genres"
+LABEL_KEY = "rating"
 
 
 def preprocessing_fn(inputs):
     try:
         outputs = {}
 
-        for key in FEATURE_KEYS:
+        for key in NUMERICAL_FEATURES:
             outputs[transformed_name(key)] = tf.cast(inputs[key], tf.int64)
-            tft.compute_and_apply_vocabulary(
-                inputs[key],
-                num_oov_buckets=NUM_OF_BUCKETS,
-                vocab_filename=f"{key}_vocab"
-            )
 
-        cat_features = tf.strings.lower(inputs[LABEL_KEY])
-        outputs[transformed_name(LABEL_KEY)] = tft.compute_and_apply_vocabulary(
+        cat_features = tf.strings.lower(inputs[CATEGORICAL_FEATURE])
+        outputs[transformed_name(CATEGORICAL_FEATURE)] = tft.compute_and_apply_vocabulary(
             cat_features,
             num_oov_buckets=NUM_OF_BUCKETS,
-            vocab_filename=f"{LABEL_KEY}_vocab"
+            vocab_filename=f"{CATEGORICAL_FEATURE}_vocab"
         )
+
+        outputs[transformed_name(LABEL_KEY)] = tf.cast(
+            inputs[LABEL_KEY], tf.int64)
 
         return outputs
     except BaseException as err:

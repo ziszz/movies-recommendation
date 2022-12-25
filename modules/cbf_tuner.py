@@ -8,7 +8,8 @@ from absl import logging
 from keras import layers
 from keras_tuner.engine import base_tuner
 
-from modules.cbf_transform import FEATURE_KEYS, LABEL_KEY
+from modules.cbf_transform import (CATEGORICAL_FEATURE, LABEL_KEY,
+                                   NUMERICAL_FEATURES)
 from modules.utils import input_fn, transformed_name
 
 TunerFnResult = NamedTuple("TunerFnResult", [
@@ -57,19 +58,27 @@ def _get_model(hyperparameters):
 
         # user neural network
         user_input = layers.Input(
-            shape=(1,), name=transformed_name(FEATURE_KEYS[0]))
+            shape=(1,), name=transformed_name(NUMERICAL_FEATURES[0]))
         user_deep = user_NN(user_input)
         user_deep = tf.linalg.l2_normalize(user_deep, axis=1)
 
         # item neural network
-        movie_input = layers.Input(
-            shape=(1,), name=transformed_name(FEATURE_KEYS[1]))
-        movie_deep = movie_NN(movie_input)
+        movie_features = []
+
+        for key in [NUMERICAL_FEATURES[1], CATEGORICAL_FEATURE]:
+            movie_features.append(
+                layers.Input(shape=(1,), name=transformed_name(key))
+            )
+
+        concatenate = layers.concatenate(movie_features)
+        movie_deep = movie_NN(concatenate)
         movie_deep = tf.linalg.l2_normalize(movie_deep, axis=1)
 
         outputs = layers.Dot(axes=1)([user_deep, movie_deep])
 
-        model = keras.Model(inputs=[user_input, movie_input], outputs=outputs)
+        inputs = [user_input, *movie_features]
+
+        model = keras.Model(inputs=inputs, outputs=outputs)
 
         model.summary()
 

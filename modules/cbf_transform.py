@@ -6,15 +6,15 @@ from modules.utils import transformed_name
 
 NUM_OF_BUCKETS = 1
 
-NUMERICAL_FEATURES = ["userId", "movieId"]
-CATEGORICAL_FEATURES = "genres"
+FEATURE_KEYS = ["userId", "movieId"]
+LABEL_KEY = "genres"
 
 
 def preprocessing_fn(inputs):
     try:
         outputs = {}
 
-        for key in NUMERICAL_FEATURES:
+        for key in FEATURE_KEYS:
             outputs[transformed_name(key)] = tf.cast(inputs[key], tf.int64)
             tft.compute_and_apply_vocabulary(
                 inputs[key],
@@ -22,11 +22,11 @@ def preprocessing_fn(inputs):
                 vocab_filename=f"{key}_vocab"
             )
 
-        cat_features = tf.strings.lower(inputs[CATEGORICAL_FEATURES])
-        outputs[transformed_name(CATEGORICAL_FEATURES)] = tft.compute_and_apply_vocabulary(
+        cat_features = tf.strings.lower(inputs[LABEL_KEY])
+        outputs[transformed_name(LABEL_KEY)] = tft.compute_and_apply_vocabulary(
             cat_features,
             num_oov_buckets=NUM_OF_BUCKETS,
-            vocab_filename=f"{CATEGORICAL_FEATURES}_vocab"
+            vocab_filename=f"{LABEL_KEY}_vocab"
         )
 
         return outputs

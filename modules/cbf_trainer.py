@@ -6,7 +6,7 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 
-from modules.cbf_transform import CATEGORICAL_FEATURES, NUMERICAL_FEATURES
+from modules.cbf_transform import FEATURE_KEYS, LABEL_KEY
 from modules.utils import input_fn, transformed_name
 
 
@@ -54,27 +54,19 @@ def _get_model(hyperparameters):
 
         # user neural network
         user_input = layers.Input(
-            shape=(1,), name=transformed_name(NUMERICAL_FEATURES[0]))
+            shape=(1,), name=transformed_name(FEATURE_KEYS[0]))
         user_deep = user_NN(user_input)
         user_deep = tf.linalg.l2_normalize(user_deep, axis=1)
 
         # item neural network
-        movie_features = []
-
-        for key in [NUMERICAL_FEATURES[1], CATEGORICAL_FEATURES]:
-            movie_features.append(
-                layers.Input(shape=(1,), name=transformed_name(key))
-            )
-
-        concatenate = layers.concatenate(movie_features)
-        movie_deep = movie_NN(concatenate)
+        movie_input = layers.Input(
+            shape=(1,), name=transformed_name(FEATURE_KEYS[1]))
+        movie_deep = movie_NN(movie_input)
         movie_deep = tf.linalg.l2_normalize(movie_deep, axis=1)
 
         outputs = layers.Dot(axes=1)([user_deep, movie_deep])
 
-        inputs = [user_input, *movie_features]
-
-        model = keras.Model(inputs=inputs, outputs=outputs)
+        model = keras.Model(inputs=[user_input, movie_input], outputs=outputs)
 
         model.summary()
 
@@ -96,9 +88,9 @@ def run_fn(fn_args):
         tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
 
         train_dataset = input_fn(
-            fn_args.train_files, tf_transform_output, batch_size=128)
+            fn_args.train_files, tf_transform_output, batch_size=128, label_key=transformed_name(LABEL_KEY))
         eval_dataset = input_fn(
-            fn_args.eval_files, tf_transform_output, batch_size=128)
+            fn_args.eval_files, tf_transform_output, batch_size=128, label_key=transformed_name(LABEL_KEY))
 
         model = _get_model(hyperparameters)
 

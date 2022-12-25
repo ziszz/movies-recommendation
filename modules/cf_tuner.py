@@ -31,7 +31,7 @@ loss_early_stop = tf.keras.callbacks.EarlyStopping(
 )
 
 
-def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
+def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
     try:
         # hyperparameters
         embedding_dims = hyperparameters.Int(
@@ -90,7 +90,7 @@ def _get_cf_model(hyperparameters, unique_user_ids, unique_movie_ids):
 
         return model
     except BaseException as err:
-        logging.error(f"ERROR IN _get_cf_model:\n{err}")
+        logging.error(f"ERROR IN _get_model:\n{err}")
 
 
 def tuner_fn(fn_args):
@@ -112,7 +112,7 @@ def tuner_fn(fn_args):
         movies_vocab_str = [b.decode() for b in unique_movie_ids]
 
         tuner = kt.Hyperband(
-            hypermodel=lambda hp: _get_cf_model(
+            hypermodel=lambda hp: _get_model(
                 hyperparameters=hp,
                 unique_user_ids=users_vocab_str,
                 unique_movie_ids=movies_vocab_str,

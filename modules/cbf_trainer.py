@@ -6,7 +6,8 @@ import tensorflow_transform as tft
 from absl import logging
 from keras import layers
 
-from modules.utils import input_fn
+from modules.cbf_transform import CATEGORICAL_FEATURES, NUMERICAL_FEATURES
+from modules.utils import input_fn, transformed_name
 
 
 def _get_serve_tf_examples_fn(model, tf_transform_output):
@@ -32,38 +33,53 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         logging.error(f"ERROR IN _get_serve_tf_examples_fn:\n{err}")
 
 
-def _get_model():
+def _get_model(hyperparameters):
     try:
+        dense_unit1 = hyperparameters["dense_unit1"]
+        dense_unit2 = hyperparameters["dense_unit2"]
+        dense_unit3 = hyperparameters["dense_unit3"]
+        learning_rate = hyperparameters["learning_rate"]
+
         user_NN = keras.Sequential([
-            layers.Dense(256, activation=tf.nn.relu),
-            layers.Dense(64, activation=tf.nn.relu),
-            layers.Dense(32),
+            layers.Dense(dense_unit1, activation=tf.nn.relu),
+            layers.Dense(dense_unit2, activation=tf.nn.relu),
+            layers.Dense(dense_unit3),
         ])
 
         movie_NN = keras.Sequential([
-            layers.Dense(256, activation=tf.nn.relu),
-            layers.Dense(64, activation=tf.nn.relu),
-            layers.Dense(32),
+            layers.Dense(dense_unit1, activation=tf.nn.relu),
+            layers.Dense(dense_unit2, activation=tf.nn.relu),
+            layers.Dense(dense_unit3),
         ])
 
         # user neural network
-        user_input = layers.Input(shape=(1,))
+        user_input = layers.Input(
+            shape=(1,), name=transformed_name(NUMERICAL_FEATURES[0]))
         user_deep = user_NN(user_input)
         user_deep = tf.linalg.l2_normalize(user_deep, axis=1)
 
         # item neural network
-        movie_input = layers.Input(shape=(2,))
-        movie_deep = movie_NN(movie_input)
+        movie_features = []
+
+        for key in zip(NUMERICAL_FEATURES[1], CATEGORICAL_FEATURES):
+            movie_features.append(
+                layers.Input(shape=(1,), name=transformed_name(key))
+            )
+
+        concatenate = layers.concatenate(movie_features)
+        movie_deep = movie_NN(concatenate)
         movie_deep = tf.linalg.l2_normalize(movie_deep, axis=1)
 
         outputs = layers.Dot(axes=1)([user_deep, movie_deep])
 
-        model = keras.Model(inputs=[user_input, movie_input], outputs=outputs)
+        inputs = [user_input, *movie_features]
+
+        model = keras.Model(inputs=inputs, outputs=outputs)
 
         model.summary()
 
         model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=1e-4),
+            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
             loss=keras.losses.MeanSquaredError(),
             metrics=[keras.metrics.RootMeanSquaredError()],
         )

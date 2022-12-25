@@ -64,7 +64,7 @@ def _get_model(hyperparameters):
         # item neural network
         movie_features = []
 
-        for key in zip(NUMERICAL_FEATURES[1], CATEGORICAL_FEATURES):
+        for key in [NUMERICAL_FEATURES[1], CATEGORICAL_FEATURES]:
             movie_features.append(
                 layers.Input(shape=(1,), name=transformed_name(key))
             )

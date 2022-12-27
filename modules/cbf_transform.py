@@ -18,12 +18,8 @@ def preprocessing_fn(inputs):
         for key in NUMERICAL_FEATURES:
             outputs[transformed_name(key)] = tf.cast(inputs[key], tf.int64)
 
-        cat_features = tf.strings.lower(inputs[CATEGORICAL_FEATURE])
         outputs[transformed_name(CATEGORICAL_FEATURE)] = tft.compute_and_apply_vocabulary(
-            cat_features,
-            num_oov_buckets=NUM_OF_BUCKETS,
-            vocab_filename=f"{CATEGORICAL_FEATURE}_vocab"
-        )
+            inputs[CATEGORICAL_FEATURE])
 
         outputs[transformed_name(LABEL_KEY)] = tf.cast(
             inputs[LABEL_KEY], tf.int64)

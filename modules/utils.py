@@ -9,6 +9,14 @@ def transformed_name(key):
     return f"{key.lower()}_xf"
 
 
+def create_str_feature(value):
+    return tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[bytes(value, "utf-8")]
+        ),
+    )
+
+
 def create_int_feature(value):
     return tf.train.Feature(
         int64_list=tf.train.Int64List(
@@ -30,6 +38,15 @@ def _gzip_reader_fn(filenames):
         return tf.data.TFRecordDataset(filenames, compression_type="GZIP")
     except BaseException as err:
         logging.error(f"ERROR IN _gzip_reader_fn:\n{err}")
+
+
+def convert_num_to_one_hot(label_tensor, num_labels=2):
+    try:
+        num_labels = tf.cast(num_labels, dtype=tf.int32)
+        one_hot_tensor = tf.one_hot(label_tensor, num_labels)
+        return tf.reshape(one_hot_tensor, [-1, num_labels])
+    except BaseException as err:
+        logging.error(f"ERROR IN convert_num_to_one_hot:\n{err}")
 
 
 def merge_dataset(data1_path: str, data2_path: str):

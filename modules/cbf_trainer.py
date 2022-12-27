@@ -10,6 +10,8 @@ from modules.cbf_transform import (CATEGORICAL_FEATURE, LABEL_KEY,
                                    NUMERICAL_FEATURES)
 from modules.utils import input_fn, transformed_name
 
+UNUSED_FEATURE_KEY = [LABEL_KEY, "title", "timestamp"]
+
 
 def _get_serve_tf_examples_fn(model, tf_transform_output):
     try:
@@ -19,6 +21,9 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         def serve_tf_examples_fn(serialized_tf_examples):
             try:
                 feature_spec = tf_transform_output.raw_feature_spec()
+
+                for key in UNUSED_FEATURE_KEY:
+                    feature_spec.pop(key)
 
                 parsed_features = tf.io.parse_example(
                     serialized_tf_examples, feature_spec)

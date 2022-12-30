@@ -17,8 +17,8 @@ TunerFnResult = NamedTuple("TunerFnResult", [
     ("fit_kwargs", Dict[Text, Any])
 ])
 
-rmse_early_stop = tf.keras.callbacks.EarlyStopping(
-    monitor="val_root_mean_squared_error",
+sim_early_stop = tf.keras.callbacks.EarlyStopping(
+    monitor="val_cosine_similarity",
     mode="min",
     verbose=1,
     patience=10,
@@ -83,7 +83,7 @@ def _get_model(hyperparameters):
         model.summary()
 
         model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+            optimizer=keras.optimizers.Adagrad(learning_rate=learning_rate),
             loss=keras.losses.MeanSquaredError(),
             metrics=[keras.metrics.CosineSimilarity(axis=1)],
         )
@@ -128,7 +128,7 @@ def tuner_fn(fn_args):
                 "validation_data": eval_dataset,
                 "steps_per_epoch": fn_args.train_steps,
                 "validation_steps": fn_args.eval_steps,
-                "callbacks": [rmse_early_stop, loss_early_stop]
+                "callbacks": [sim_early_stop, loss_early_stop]
             },
         )
     except BaseException as err:

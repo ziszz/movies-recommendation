@@ -87,7 +87,7 @@ def _get_model(hyperparameters):
         model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
             loss=keras.losses.MeanSquaredError(),
-            metrics=[keras.metrics.RootMeanSquaredError()],
+            metrics=[keras.metrics.CosineSimilarity(axis=1)],
         )
 
         return model

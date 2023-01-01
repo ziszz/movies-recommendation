@@ -107,7 +107,7 @@ def tuner_fn(fn_args):
             hypermodel=_get_model,
             objective=[
                 kt.Objective(
-                    "val_lounique_user_idss",
+                    "val_loss",
                     direction="min",
                 ),
                 kt.Objective(

@@ -113,8 +113,8 @@ def run_fn(fn_args):
 
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir)
 
-        sim_early_stop_callbacks = keras.callbacks.EarlyStopping(
-            monitor="val_cosine_similarity",
+        rmse_early_stop_callbacks = keras.callbacks.EarlyStopping(
+            monitor="val_root_mean_squared_error",
             mode="min",
             verbose=1,
             patience=10,
@@ -129,7 +129,7 @@ def run_fn(fn_args):
 
         callbacks = [
             tensorboard_callback,
-            sim_early_stop_callbacks,
+            rmse_early_stop_callbacks,
             loss_early_stop_callbacks,
         ]
 

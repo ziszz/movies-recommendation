@@ -1,0 +1,14 @@
+version: '1'
+services:
+  cf:
+    build:
+      context: ./docker/cf
+      target: cf
+    ports:
+      - "8080:8080"
+  cbf:
+    build:
+      context: ./docker/cbf
+      target: cbf
+    ports:
+      - "8081:8081"

@@ -84,9 +84,9 @@ def _get_model(hyperparameters):
         model.summary()
 
         model.compile(
-            optimizer=keras.optimizers.Adagrad(learning_rate=learning_rate),
+            optimizer=keras.optimizers.RMSprop(learning_rate=learning_rate),
             loss=keras.losses.MeanSquaredError(),
-            metrics=[keras.metrics.RootMeanSquaredError()],
+            metrics=[keras.metrics.CosineSimilarity()],
         )
 
         return model

@@ -42,7 +42,7 @@ def _get_model(hyperparameters):
         dense_unit3 = hyperparameters.Int(
             "dense_unit3", min_value=8, max_value=512, step=32)
         learning_rate = hyperparameters.Choice(
-            "learning_rate", values=[1e-2, 1e-3, 1e-4, 1e-5])
+            "learning_rate", values=[1e-1, 1e-2, 1e-3, 1e-4])
 
         user_NN = keras.Sequential([
             layers.Dense(dense_unit1, activation=tf.nn.relu),
@@ -82,9 +82,9 @@ def _get_model(hyperparameters):
         model.summary()
 
         model.compile(
-            optimizer=keras.optimizers.Adagrad(learning_rate=learning_rate),
+            optimizer=keras.optimizers.RMSprop(learning_rate=learning_rate),
             loss=keras.losses.MeanSquaredError(),
-            metrics=[keras.metrics.RootMeanSquaredError()],
+            metrics=[keras.metrics.CosineSimilarity()],
         )
 
         return model

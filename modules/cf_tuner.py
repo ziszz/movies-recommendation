@@ -36,6 +36,8 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
         # hyperparameters
         embedding_dims = hyperparameters.Int(
             "embedding_dims", min_value=16, max_value=1024, step=32)
+        lstm_unit = hyperparameters.Int(
+            "lstm_unit", min_value=64, max_value=512, step=32)
         l2_regularizers = hyperparameters.Choice(
             "l2_regularizers", values=[1e-2, 1e-3, 1e-4, 1e-5])
         num_hidden_layers = hyperparameters.Choice(
@@ -57,6 +59,8 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
         )(user_input)
+        users_rnn = layers.Bidirectional(
+            layers.LSTM(lstm_unit))(users_embedding)
 
         # movie embedding
         movie_input = layers.Input(
@@ -68,8 +72,10 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
         )(movie_input)
+        movies_rnn = layers.Bidirectional(
+            layers.LSTM(lstm_unit))(movies_embedding)
 
-        concatenate = layers.concatenate([users_embedding, movies_embedding])
+        concatenate = layers.concatenate([users_rnn, movies_rnn])
         deep = layers.Dense(dense_unit, activation=tf.nn.relu)(concatenate)
 
         for _ in range(num_hidden_layers):

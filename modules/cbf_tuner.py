@@ -57,7 +57,7 @@ def _get_model(hyperparameters):
         ])
 
         # user neural network
-        user_input = layers.Input(shape=(1,), name=transformed_name(
+        user_input = layers.Input(shape=(1), name=transformed_name(
             NUMERICAL_FEATURES), dtype=tf.int64)
         user_deep = user_NN(user_input)
         user_deep = tf.linalg.l2_normalize(user_deep, axis=1)
@@ -67,7 +67,7 @@ def _get_model(hyperparameters):
 
         for key in CATEGORICAL_FEATURE:
             movie_features.append(layers.Input(
-                shape=(1,), name=transformed_name(key), dtype=tf.int64))
+                shape=(1), name=transformed_name(key), dtype=tf.int64))
 
         concantenate = layers.concatenate(movie_features)
 

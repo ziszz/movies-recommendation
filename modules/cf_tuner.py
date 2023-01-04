@@ -36,8 +36,6 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
         # hyperparameters
         embedding_dims = hyperparameters.Int(
             "embedding_dims", min_value=16, max_value=1024, step=32)
-        lstm_unit = hyperparameters.Int(
-            "lstm_unit", min_value=64, max_value=512, step=32)
         l2_regularizers = hyperparameters.Choice(
             "l2_regularizers", values=[1e-2, 1e-3, 1e-4, 1e-5])
         num_hidden_layers = hyperparameters.Choice(
@@ -47,7 +45,7 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
         dropout_rate = hyperparameters.Float(
             "dropout_rate", min_value=0.1, max_value=0.8, step=0.1)
         learning_rate = hyperparameters.Choice(
-            "learning_rate", values=[1e-2, 1e-3, 1e-4, 1e-5])
+            "learning_rate", values=[1e-1, 1e-2, 1e-3, 1e-4])
 
         # users embedding
         user_input = layers.Input(
@@ -85,7 +83,7 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
         model.summary()
 
         model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+            optimizer=keras.optimizers.RMSprop(learning_rate=learning_rate),
             loss=keras.losses.MeanSquaredError(),
             metrics=[keras.metrics.RootMeanSquaredError()],
         )

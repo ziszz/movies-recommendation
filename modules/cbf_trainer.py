@@ -138,7 +138,7 @@ def run_fn(fn_args):
     try:
         model.fit(
             train_dataset,
-            epochs=hyperparameters["tuner/epochs"],
+            epochs=fn_args.custom_config["epochs"],
             steps_per_epoch=fn_args.train_steps,
             validation_data=eval_dataset,
             validation_steps=fn_args.eval_steps,

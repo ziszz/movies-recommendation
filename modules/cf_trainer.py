@@ -59,8 +59,6 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
         )(user_input)
-        users_rnn = layers.Bidirectional(
-            layers.LSTM(lstm_unit))(users_embedding)
 
         # movie embedding
         movie_input = layers.Input(
@@ -72,10 +70,8 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
             embeddings_regularizer=keras.regularizers.l2(
                 l2_regularizers),
         )(movie_input)
-        movies_rnn = layers.Bidirectional(
-            layers.LSTM(lstm_unit))(movies_embedding)
 
-        concatenate = layers.concatenate([users_rnn, movies_rnn])
+        concatenate = layers.concatenate([users_embedding, movies_embedding])
         deep = layers.Dense(dense_unit, activation=tf.nn.relu)(concatenate)
 
         for _ in range(num_hidden_layers):
@@ -150,7 +146,7 @@ def run_fn(fn_args):
     try:
         model.fit(
             train_dataset,
-            epochs=hyperparameters["tuner/epochs"],
+            epochs=fn_args.custom_config["epochs"],
             steps_per_epoch=fn_args.train_steps,
             validation_data=eval_dataset,
             validation_steps=fn_args.eval_steps,

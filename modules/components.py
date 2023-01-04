@@ -62,7 +62,7 @@ def init_components(**kwargs):
                 num_steps=kwargs["eval_steps"],
             ),
             custom_config={
-                "epochs": kwargs["epochs"],
+                "epochs": kwargs["tuner_epochs"],
             }
         )
 
@@ -80,6 +80,9 @@ def init_components(**kwargs):
                 splits=["eval"],
                 num_steps=kwargs["eval_steps"],
             ),
+            custom_config={
+                "epochs": kwargs["trainer_epochs"],
+            }
         )
 
         model_resolver = Resolver(

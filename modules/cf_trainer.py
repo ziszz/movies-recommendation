@@ -42,7 +42,6 @@ def _get_model(hyperparameters, unique_user_ids, unique_movie_ids):
     try:
         # hyperparameters
         embedding_dims = hyperparameters["embedding_dims"]
-        lstm_unit = hyperparameters["lstm_unit"]
         l2_regularizers = hyperparameters["l2_regularizers"]
         num_hidden_layers = hyperparameters["num_hidden_layers"]
         dense_unit = hyperparameters["dense_unit"]

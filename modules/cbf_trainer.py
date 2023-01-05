@@ -65,28 +65,21 @@ def _get_model(hyperparameters):
         user_deep = tf.linalg.l2_normalize(user_deep, axis=1)
 
         # item neural network
-        movie_features = []
-
-        for key in CATEGORICAL_FEATURE:
-            movie_features.append(layers.Input(
-                shape=(1), name=transformed_name(key), dtype=tf.int64))
-
-        concantenate = layers.concatenate(movie_features)
-
-        movie_deep = movie_NN(concantenate)
+        movie_input = layers.Input(shape=(1), name=transformed_name(CATEGORICAL_FEATURE), dtype=tf.int64)
+        movie_deep = movie_NN(movie_input)
         movie_deep = tf.linalg.l2_normalize(movie_deep, axis=1)
 
         outputs = layers.Dot(axes=1)([user_deep, movie_deep])
 
         model = keras.Model(
-            inputs=[user_input, *movie_features], outputs=outputs)
+            inputs=[user_input, movie_input], outputs=outputs)
 
         model.summary()
 
         model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-            loss=keras.losses.BinaryCrossentropy(),
-            metrics=[keras.metrics.Accuracy()],
+            loss=keras.losses.MeanSquaredError(),
+            metrics=[keras.metrics.RootMeanSquaredError()],
         )
 
         return model
@@ -112,8 +105,8 @@ def run_fn(fn_args):
 
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir)
 
-        bin_early_stop_callbacks = keras.callbacks.EarlyStopping(
-            monitor="val_binary_crossentropy",
+        rmse_early_stop_callbacks = keras.callbacks.EarlyStopping(
+            monitor="val_root_mean_squared_error",
             mode="min",
             verbose=1,
             patience=10,
@@ -128,7 +121,7 @@ def run_fn(fn_args):
 
         callbacks = [
             tensorboard_callback,
-            bin_early_stop_callbacks,
+            rmse_early_stop_callbacks,
             loss_early_stop_callbacks,
         ]
 

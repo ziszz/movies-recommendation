@@ -69,14 +69,19 @@ def _get_model(hyperparameters):
         user_deep = user_NN(user_input)
 
         # item neural network
-        movie_input = layers.Input(shape=(1), name=transformed_name(
-            CATEGORICAL_FEATURE), dtype=tf.int64)
-        movie_deep = movie_NN(movie_input)
+        movie_features = []
+
+        for key in CATEGORICAL_FEATURE:
+            movie_features.append(layers.Input(
+                shape=(1), name=transformed_name(key), dtype=tf.int64))
+
+        concatenate = layers.concatenate(movie_features)
+        movie_deep = movie_NN(concatenate)
 
         outputs = layers.Dot(axes=1, normalize=True)([user_deep, movie_deep])
 
         model = keras.Model(
-            inputs=[user_input, movie_input], outputs=outputs)
+            inputs=[user_input, *movie_features], outputs=outputs)
 
         model.summary()
 

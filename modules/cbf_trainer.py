@@ -85,8 +85,8 @@ def _get_model(hyperparameters):
 
         model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-            loss=keras.losses.MeanSquaredError(),
-            metrics=[keras.metrics.RootMeanSquaredError()],
+            loss=keras.losses.BinaryCrossentropy(),
+            metrics=[keras.metrics.Accuracy()],
         )
 
         return model
@@ -112,8 +112,8 @@ def run_fn(fn_args):
 
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir)
 
-        rmse_early_stop_callbacks = keras.callbacks.EarlyStopping(
-            monitor="val_root_mean_squared_error",
+        bin_early_stop_callbacks = keras.callbacks.EarlyStopping(
+            monitor="val_binary_crossentropy",
             mode="min",
             verbose=1,
             patience=10,
@@ -128,7 +128,7 @@ def run_fn(fn_args):
 
         callbacks = [
             tensorboard_callback,
-            rmse_early_stop_callbacks,
+            bin_early_stop_callbacks,
             loss_early_stop_callbacks,
         ]
 

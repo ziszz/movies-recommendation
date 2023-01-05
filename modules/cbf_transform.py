@@ -7,7 +7,7 @@ from modules.utils import transformed_name
 NUM_OF_BUCKETS = 1
 
 NUMERICAL_FEATURES = "userId"
-CATEGORICAL_FEATURE = "genres"
+CATEGORICAL_FEATURE = "title"
 LABEL_KEY = "rating"
 
 

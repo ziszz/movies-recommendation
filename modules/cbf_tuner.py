@@ -41,18 +41,24 @@ def _get_model(hyperparameters):
             "dense_unit2", min_value=16, max_value=256, step=32)
         dense_unit3 = hyperparameters.Int(
             "dense_unit3", min_value=32, max_value=128, step=32)
+        dropout_unit = hyperparameters.Float(
+            "dense_unit3", min_value=0.2, max_value=0.7, step=0.1)
         learning_rate = hyperparameters.Choice(
             "learning_rate", values=[1e-1, 1e-2, 1e-3, 1e-4])
 
         user_NN = keras.Sequential([
             layers.Dense(dense_unit1, activation=tf.nn.relu),
+            layers.Dropout(dropout_unit),
             layers.Dense(dense_unit2, activation=tf.nn.relu),
+            layers.Dropout(dropout_unit),
             layers.Dense(dense_unit3),
         ])
 
         movie_NN = keras.Sequential([
             layers.Dense(dense_unit1, activation=tf.nn.relu),
+            layers.Dropout(dropout_unit),
             layers.Dense(dense_unit2, activation=tf.nn.relu),
+            layers.Dropout(dropout_unit),
             layers.Dense(dense_unit3),
         ])
 

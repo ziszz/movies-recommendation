@@ -7,7 +7,7 @@ from modules.utils import transformed_name
 NUM_OF_BUCKETS = 1
 
 NUMERICAL_FEATURES = "userId"
-CATEGORICAL_FEATURE = ["genres", "title"]
+CATEGORICAL_FEATURES = ["genres", "title"]
 LABEL_KEY = "rating"
 
 
@@ -18,7 +18,7 @@ def preprocessing_fn(inputs):
         outputs[transformed_name(NUMERICAL_FEATURES)] = tf.cast(
             inputs[NUMERICAL_FEATURES], tf.int64)
 
-        for key in CATEGORICAL_FEATURE:
+        for key in CATEGORICAL_FEATURES:
             outputs[transformed_name(key)] = tft.compute_and_apply_vocabulary(
                 inputs[key])
 

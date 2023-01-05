@@ -8,7 +8,7 @@ from absl import logging
 from keras import layers
 from keras_tuner.engine import base_tuner
 
-from modules.cbf_transform import (CATEGORICAL_FEATURE, LABEL_KEY,
+from modules.cbf_transform import (CATEGORICAL_FEATURES, LABEL_KEY,
                                    NUMERICAL_FEATURES)
 from modules.utils import input_fn, transformed_name
 
@@ -70,7 +70,7 @@ def _get_model(hyperparameters):
         # item neural network
         movie_features = []
 
-        for key in CATEGORICAL_FEATURE:
+        for key in CATEGORICAL_FEATURES:
             movie_features.append(layers.Input(
                 shape=(1), name=transformed_name(key), dtype=tf.int64))
 

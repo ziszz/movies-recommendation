@@ -22,8 +22,8 @@ def preprocessing_fn(inputs):
             outputs[transformed_name(key)] = tft.compute_and_apply_vocabulary(
                 inputs[key])
 
-        outputs[transformed_name(LABEL_KEY)] = tf.cast(
-            inputs[LABEL_KEY], tf.int64)
+        outputs[transformed_name(LABEL_KEY)] = tft.scale_to_0_1(
+            inputs[LABEL_KEY])
 
         return outputs
     except BaseException as err:

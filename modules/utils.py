@@ -40,15 +40,6 @@ def _gzip_reader_fn(filenames):
         logging.error(f"ERROR IN _gzip_reader_fn:\n{err}")
 
 
-def convert_num_to_one_hot(label_tensor, num_labels=2):
-    try:
-        num_labels = tf.cast(num_labels, dtype=tf.int32)
-        one_hot_tensor = tf.one_hot(label_tensor, num_labels)
-        return tf.reshape(one_hot_tensor, [-1, num_labels])
-    except BaseException as err:
-        logging.error(f"ERROR IN convert_num_to_one_hot:\n{err}")
-
-
 def merge_dataset(data1_path: str, data2_path: str):
     try:
         df1 = pd.read_csv(data1_path)
